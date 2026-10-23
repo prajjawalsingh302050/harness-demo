@@ -15,16 +15,25 @@ import httpx
 N_PEOPLE = 10_000
 
 
-def pick_request(rnd):
-    roll = rnd.random()
-    if roll < 0.4:
-        # The "Load 5000 people" button.
-        return "people", "/api/people?limit=5000"
-    if roll < 0.9:
-        # About 20% of person lookups use an ID that does not exist.
-        pid = rnd.randint(1, N_PEOPLE) if rnd.random() < 0.8 else rnd.randint(N_PEOPLE + 1, N_PEOPLE * 2)
-        return "person", f"/api/people/{pid}"
-    return "health", "/api/health"
+HEAVY_WORKERS = 2  # keep clicking "Load 5000 people"
+LIGHT_WORKERS = 3  # person lookups and health checks, so slow heavy requests can't starve them
+
+
+def heavy_requests(rnd):
+    while True:
+        yield "people", "/api/people?limit=5000"
+
+
+def light_requests(rnd):
+    lookups = 0
+    while True:
+        if rnd.random() < 0.15:
+            yield "health", "/api/health"
+            continue
+        lookups += 1
+        # Every 5th lookup uses an ID that does not exist, so the error rate doesn't depend on luck.
+        pid = rnd.randint(N_PEOPLE + 1, N_PEOPLE * 2) if lookups % 5 == 0 else rnd.randint(1, N_PEOPLE)
+        yield "person", f"/api/people/{pid}"
 
 
 def percentile(values, pct):
@@ -35,9 +44,9 @@ def percentile(values, pct):
     return round(values[k], 1)
 
 
-async def worker(client, deadline, samples, rnd):
+async def worker(client, deadline, samples, requests):
     while time.monotonic() < deadline:
-        name, path = pick_request(rnd)
+        name, path = next(requests)
         started = time.perf_counter()
         try:
             try:
@@ -61,18 +70,18 @@ async def worker(client, deadline, samples, rnd):
         })
 
 
-async def run(base_url, duration, concurrency, seed):
+async def run(base_url, duration, seed):
     samples = []
-    async with httpx.AsyncClient(base_url=base_url, timeout=30, follow_redirects=True) as client:
+    async with httpx.AsyncClient(base_url=base_url, timeout=60, follow_redirects=True) as client:
         for _ in range(3):  # warm-up so cold starts do not skew the numbers
             try:
                 await client.get("/api/health")
             except httpx.HTTPError:
                 pass
         deadline = time.monotonic() + duration
-        await asyncio.gather(*(
-            worker(client, deadline, samples, random.Random(seed + i)) for i in range(concurrency)
-        ))
+        workers = [heavy_requests(random.Random(seed + i)) for i in range(HEAVY_WORKERS)]
+        workers += [light_requests(random.Random(seed + 100 + i)) for i in range(LIGHT_WORKERS)]
+        await asyncio.gather(*(worker(client, deadline, samples, requests) for requests in workers))
     return samples
 
 
@@ -105,12 +114,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", required=True)
     parser.add_argument("--duration", type=int, default=20)
-    parser.add_argument("--concurrency", type=int, default=4)
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--out", required=True)
     args = parser.parse_args()
 
-    samples = asyncio.run(run(args.base_url.rstrip("/"), args.duration, args.concurrency, args.seed))
+    samples = asyncio.run(run(args.base_url.rstrip("/"), args.duration, args.seed))
     summary = summarise(samples, args.base_url, args.duration)
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(summary, indent=2))
