@@ -57,11 +57,9 @@ app/
 │   └── routes/               orders.py  users.py  health.py   (HTTP only, no logic, no SQL)
 ├── services/
 │   ├── registry.py           ServiceRegistry: wires repositories into services, per request
-│   ├── orders.py             OrderService: orders page, customer, taxed total
+│   ├── orders.py             OrderService: orders page, customer, order total
 │   ├── users.py              UserService: customer + order count
-│   ├── health.py             HealthService: DB ping
-│   ├── pricing.py            Tax by city
-│   └── legacy_discount.py    (planted dead code)
+│   └── health.py             HealthService: DB ping
 ├── repositories/             orders.py  users.py   (every SQL statement, via app.db.query)
 ├── schemas/                  Pydantic response models = the API contract
 └── db/                       connect(), query(): read-only SQLite, query counting, slow-query log
@@ -71,7 +69,7 @@ app/
 |---|---|---|
 | Routes | HTTP: paths, query params, status codes, `response_model` | SQL, business rules |
 | Service registry | Which repository each service needs | Logic |
-| Services | Business rules (paging, tax, what a missing customer means) | SQL, HTTP details |
+| Services | Business rules (paging, order totals, what a missing customer means) | SQL, HTTP details |
 | Repositories | SQL, through `app.db.query()` so it is counted and timed | Business rules |
 | Schemas | The JSON contract | Anything else |
 
@@ -92,8 +90,7 @@ GET /api/orders?page=2
               ├─ order_repo.list_page()      query(): counted, timed, logged if > 5 ms
               ├─ for each order:             (planted N+1)
               │    user_repo.get()
-              │    order_repo.item_total()   full scan without the index
-              └─ price_with_tax()            tax by city
+              └─   order_repo.item_total()   full scan without the index
           └─ response_model=OrdersPage       validates the response shape
   └─ middleware: Server-Timing: db;dur=…, app;dur=… ; X-DB-Queries: 101
 ```

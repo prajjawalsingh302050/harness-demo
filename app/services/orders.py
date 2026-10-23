@@ -1,7 +1,6 @@
-"""Order use cases: build the orders page with customer and taxed total."""
+"""Order use cases: build the orders page with customer and order total."""
 from app.core.config import settings
 from app.schemas import OrderOut, OrdersPage
-from app.services.pricing import price_with_tax
 
 
 class OrderService:
@@ -22,6 +21,6 @@ class OrderService:
                 city=user["city"],
                 created_at=order["created_at"],
                 status=order["status"],
-                total=price_with_tax(total, user["city"]),
+                total=total,
             ))
         return OrdersPage(page=page, page_size=size, orders=result)

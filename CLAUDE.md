@@ -13,7 +13,7 @@ and a Gemini coding agent that fixes them through PRs. See [README.md](README.md
 They are the input to the demo. Fixing them by hand on `main` breaks the demo.
 
 Planted on purpose (each one is caught by one of the three sensors):
-- dead code: `app/services/legacy_discount.py`, `old_tax_rate()` in `pricing.py`, `import json` in `app/api/routes/orders.py`, `public/js/legacy-charts.js`
+- dead code: `import json` in `app/api/routes/orders.py`, `public/js/legacy-charts.js`
 - p95 latency: the N+1 loop in `app/services/orders.py` and the missing `order_items.order_id` index in `migrations/001_init.sql`
 - error rate: the HTTP 500 for a missing customer in `app/services/users.py`
 
