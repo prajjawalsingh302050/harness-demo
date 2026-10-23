@@ -1,0 +1,12 @@
+{
+  "vulnerabilities": 0,
+  "dead_code_items": 0,
+  "weak_tests": 0,
+  "orders_p95_ms": 200,
+  "users_p95_ms": 150,
+  "db_queries_per_request": 5,
+  "error_rate_pct": 1,
+  "availability_pct": 99,
+  "slow_queries_with_full_scan": 0,
+  "repeated_log_warnings": 100
+}
