@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Customer</title>
+  <title>Person</title>
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
   <header class="topbar">
-    <h1>Harness Demo Shop</h1>
+    <h1>Harness Demo</h1>
     <nav>
-      <a href="/">Orders</a>
-      <a href="/user.html?id=1">Customers</a>
+      <a href="/">People</a>
+      <a href="/person.html?id=1">Person</a>
       <a href="/health.html">Health</a>
       <a href="/architecture.html">How it works</a>
     </nav>
@@ -20,17 +20,17 @@
   <main>
     <section class="card">
       <form id="lookup" class="toolbar">
-        <label for="user-id">Customer ID</label>
-        <input id="user-id" type="number" min="1" value="1">
+        <label for="person-id">Person ID</label>
+        <input id="person-id" type="number" min="1" value="1">
         <button class="primary" type="submit">Look up</button>
-        <span class="muted">Try 1–2000, or 5000 for a missing customer</span>
+        <span class="muted">Try 1–10000, or 15000 for a missing person</span>
         <div class="metrics" id="metrics"></div>
       </form>
-      <div id="user"></div>
+      <div id="person"></div>
     </section>
   </main>
 
   <script src="/js/api.js"></script>
-  <script src="/js/user.js"></script>
+  <script src="/js/person.js"></script>
 </body>
 </html>

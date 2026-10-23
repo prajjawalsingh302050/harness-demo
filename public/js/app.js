@@ -1,36 +1,31 @@
-let page = 1;
-
-const tbody = document.getElementById("orders");
-const label = document.getElementById("page-label");
+const tbody = document.getElementById("people");
+const count = document.getElementById("count");
 const metrics = document.getElementById("metrics");
-const prev = document.getElementById("prev");
-const rupees = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 });
 
-async function loadOrders() {
-  tbody.innerHTML = '<tr><td colspan="6" class="muted">Loading…</td></tr>';
-  label.textContent = `Page ${page}`;
-  prev.disabled = page === 1;
+async function loadPeople(limit) {
+  tbody.innerHTML = '<tr><td colspan="4" class="muted">Loading…</td></tr>';
+  count.textContent = "";
 
-  const result = await apiGet(`/api/orders?page=${page}`);
+  const result = await apiGet(`/api/people?limit=${limit}`);
   renderMetrics(metrics, result);
 
   if (!result.ok || !result.body) {
-    tbody.innerHTML = `<tr><td colspan="6" class="error">Failed to load orders (HTTP ${result.status})</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="4" class="error">Failed to load people (HTTP ${result.status})</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = result.body.orders.map((o) => `
+  count.textContent = `${result.body.count} people`;
+  tbody.innerHTML = result.body.people.map((p) => `
     <tr>
-      <td>#${o.id}</td>
-      <td>${escapeHtml(o.customer)}</td>
-      <td>${escapeHtml(o.city)}</td>
-      <td>${escapeHtml(o.created_at)}</td>
-      <td class="status">${escapeHtml(o.status)}</td>
-      <td class="num">${rupees.format(o.total)}</td>
+      <td>${p.id}</td>
+      <td>${escapeHtml(p.name)}</td>
+      <td>${escapeHtml(p.email)}</td>
+      <td>${escapeHtml(p.city)}</td>
     </tr>`).join("");
 }
 
-prev.addEventListener("click", () => { page = Math.max(1, page - 1); loadOrders(); });
-document.getElementById("next").addEventListener("click", () => { page += 1; loadOrders(); });
+document.querySelectorAll("button[data-limit]").forEach((button) => {
+  button.addEventListener("click", () => loadPeople(button.dataset.limit));
+});
 
-loadOrders();
+loadPeople(50);

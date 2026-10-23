@@ -5,32 +5,25 @@ from api.index import app
 client = TestClient(app)
 
 
-def test_orders():
-    response = client.get("/api/orders")
+def test_people_default():
+    response = client.get("/api/people")
     assert response.status_code == 200
     body = response.json()
-    assert body["page"] == 1
-    assert body["page_size"] == 50
-    assert len(body["orders"]) == 50
-    first = body["orders"][0]
-    assert set(first) == {"id", "customer", "city", "created_at", "status", "total"}
-    assert first["total"] > 0
+    assert body["count"] == 50
+    assert len(body["people"]) == 50
+    assert body["people"][0] == {"id": 1, "name": "Ishaan Sharma", "email": "ishaan.sharma1@example.com", "city": "Lucknow"}
 
 
-def test_orders_paging():
-    first = client.get("/api/orders?page=1").json()["orders"]
-    second = client.get("/api/orders?page=2").json()["orders"]
-    assert {o["id"] for o in first}.isdisjoint(o["id"] for o in second)
+def test_people_5000():
+    body = client.get("/api/people?limit=5000").json()
+    assert body["count"] == 5000
+    assert [p["id"] for p in body["people"]] == list(range(1, 5001))
 
 
-def test_user():
-    response = client.get("/api/users/1")
+def test_person():
+    response = client.get("/api/people/10000")
     assert response.status_code == 200
-    body = response.json()
-    assert body["id"] == 1
-    assert body["name"] == "Ishaan Sharma"
-    assert body["city"] == "Lucknow"
-    assert body["order_count"] == 14
+    assert response.json() == {"id": 10000, "name": "Vikram Das", "email": "vikram.das10000@example.com", "city": "Mumbai"}
 
 
 def test_health():

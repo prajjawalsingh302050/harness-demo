@@ -4,7 +4,7 @@ Guidance for AI coding assistants (Claude Code and others) working in this repos
 
 ## What this repo is
 
-A **demo** of harness engineering: a shop app with **deliberately planted problems**, sensors that detect them,
+A **demo** of harness engineering: a tiny app with one `people` table and **deliberately planted problems**, sensors that detect them,
 and a Gemini coding agent that fixes them through PRs. See [README.md](README.md) and [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## The most important rule
@@ -12,15 +12,17 @@ and a Gemini coding agent that fixes them through PRs. See [README.md](README.md
 **The planted problems are intentional. Do not fix them unless the user explicitly asks.**
 They are the input to the demo. Fixing them by hand on `main` breaks the demo.
 
-Planted on purpose (each one is caught by one of the three sensors):
-- dead code: `import json` in `app/api/routes/orders.py`, `public/js/legacy-charts.js`
-- p95 latency: the N+1 loop in `app/services/orders.py` and the missing `order_items.order_id` index in `migrations/001_init.sql`
-- error rate: the HTTP 500 for a missing customer in `app/services/users.py`
+Planted on purpose (each one is caught by one of the four sensors):
+- dead code: `import json` and `format_phone()` in `app/routes.py`, `public/js/legacy-charts.js`
+- unused libraries: `requests` and `python-dateutil` in `requirements.txt`
+- p95 latency: `list_people` in `app/routes.py` looks up each person by email (no index) — 5,001 queries for "Load 5000 people"
+- error rate: the HTTP 500 for a missing person in `app/routes.py`
 
 ## Sensors
 
-Only three, on purpose: **dead code** (continuous drift detection), **p95 latency `/api/orders`** and
-**error rate** (continuous runtime feedback). Don't add more sensors unless the user asks.
+Only four, on purpose: **dead code** and **unused libraries** (continuous drift detection),
+**p95 latency `/api/people?limit=5000`** and **error rate** (continuous runtime feedback).
+Don't add more sensors unless the user asks.
 
 If the user wants them fixed, do it on a branch and open a PR, the same way the agent does.
 To restore them afterwards: `bash scripts/demo_reset.sh`.
@@ -42,11 +44,8 @@ PYTHON=.venv/bin/python bash scripts/run_sensors.sh   # all sensors → reports/
 ## Conventions
 
 - **Python 3.12**, FastAPI, standard-library `sqlite3`. Sync route functions (SQLite is blocking).
-- **Layered backend:** `app/api/routes/` (HTTP only) → `app/services/registry.py` (service registry) →
-  `app/services/` (business logic) → `app/repositories/` (SQL) → `app/db/`. Routers are registered in
-  `app/api/router.py` (`ROUTERS`); response models live in `app/schemas/`; settings in `app/core/config.py`.
-- **All SQL lives in repositories and goes through `app.db.query()`**, so it is counted in `X-DB-Queries` and slow queries are logged.
-- `app/schemas/` is excluded from vulture (Pydantic fields are read by reflection).
+- **Flat backend on purpose:** `api/index.py` (app + middleware), `app/routes.py` (endpoints), `app/db.py` (database). Keep it simple.
+- **All SQL goes through `app.db.query()`**, so it is counted in `X-DB-Queries` and slow queries are logged.
 - **Never edit `migrations/001_init.sql`.** Add a new numbered file (`002_*.sql`, `003_*.sql`), then run `scripts/build_db.py` and commit `data/shop.db`.
 - **Keep API response shapes stable.** The UI in `public/js/` depends on them.
 - **Frontend is plain HTML/CSS/JS.** No framework, no build step. Every page loads `/js/api.js` or `/js/config.js` plus its own script.
@@ -61,14 +60,14 @@ These define what "healthy" means and how the agent behaves. Changing them chang
 | File | Role |
 |---|---|
 | `budgets.json` | Pass/fail thresholds |
-| `scripts/build_report.py` | Check logic (dead code, latency, error rate) and report format |
-| `scripts/collect_runtime.py` | Load-test mix (the 20% missing-customer share drives the error-rate check) |
+| `scripts/build_report.py` | Check logic (dead code, unused libraries, latency, error rate) and report format |
+| `scripts/collect_runtime.py` | Load-test mix (40% "Load 5000", 50% person lookups with 20% missing IDs) |
 | `scripts/run_sensors.sh` | Sensor order, vulture flags |
 | `scripts/agent.py` | Agent rules, allowed paths (`EDITABLE`, `PROTECTED`), verification |
 | `.github/workflows/health-check.yml` | The loop in CI |
 
-After changing any of them, run the sensors on the planted code (expect 3 of 3 failing) **and** on a fixed copy
-(expect 3 of 3 passing) before committing.
+After changing any of them, run the sensors on the planted code (expect 4 of 4 failing) **and** on a fixed copy
+(expect 4 of 4 passing) before committing.
 
 ## Secrets and accounts
 
