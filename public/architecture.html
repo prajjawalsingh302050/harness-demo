@@ -84,7 +84,19 @@
       <div class="table-wrap">
         <table>
           <tr><th>Technology</th><td>FastAPI (Python 3.12)</td></tr>
-          <tr><th>Hosting</th><td>One Vercel Python function (FastAPI preset), entry point <code>api/index.py</code></td></tr>
+          <tr><th>Hosting</th><td>One Vercel Python function (FastAPI preset), entry point <code>api/index.py</code> → <code>app/main.py</code> (<code>create_app()</code>)</td></tr>
+          <tr><th>Layers</th><td>
+            <code>api/routes/</code> HTTP only →
+            <code>services/registry.py</code> service registry →
+            <code>services/</code> business logic →
+            <code>repositories/</code> SQL →
+            <code>db/</code> SQLite
+          </td></tr>
+          <tr><th>Registries</th><td>
+            <code>api/router.py</code> router registry (every route module, mounted under <code>/api</code>) ·
+            <code>services/registry.py</code> service registry (one per request, via <code>Depends(get_services)</code>)
+          </td></tr>
+          <tr><th>Contract</th><td><code>schemas/</code> Pydantic response models · config in <code>core/config.py</code> · Swagger UI at <code>/api/docs</code></td></tr>
           <tr><th>Database</th><td>SQLite file <code>data/shop.db</code> (2,000 users, 20,000 orders, 160,000 order items), opened read-only. Built from <code>migrations/*.sql</code> by <code>scripts/build_db.py</code>.</td></tr>
           <tr><th>Endpoints</th><td>
             <code>GET /api/orders?page=N</code> 50 orders with customer and total ·
@@ -117,10 +129,10 @@
         <table>
           <thead><tr><th>Problem</th><th>Where</th><th>Expected fix</th></tr></thead>
           <tbody>
-            <tr><td>Unused module, function, import and JS file</td><td><code>legacy_discount.py</code>, <code>pricing.py</code>, <code>orders.py</code>, <code>legacy-charts.js</code></td><td>Delete</td></tr>
-            <tr><td>N+1 queries (101 per page)</td><td><code>app/routes/orders.py</code></td><td>One JOIN query</td></tr>
+            <tr><td>Unused module, function, import and JS file</td><td><code>legacy_discount.py</code>, <code>pricing.py</code>, <code>api/routes/orders.py</code>, <code>legacy-charts.js</code></td><td>Delete</td></tr>
+            <tr><td>N+1 queries (101 per page)</td><td><code>services/orders.py</code></td><td>One JOIN query in the repository</td></tr>
             <tr><td>Missing index on <code>order_items.order_id</code></td><td><code>migrations/001_init.sql</code></td><td>New migration with an index</td></tr>
-            <tr><td>HTTP 500 for a missing customer</td><td><code>app/routes/users.py</code></td><td>Return 404</td></tr>
+            <tr><td>HTTP 500 for a missing customer</td><td><code>services/users.py</code></td><td>Return 404</td></tr>
           </tbody>
         </table>
       </div>
