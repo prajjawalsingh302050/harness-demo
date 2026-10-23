@@ -51,7 +51,7 @@ GET /api/orders?page=2
           ├─ for each order:                 (planted N+1)
           │    query(users by id)
           │    query(SUM over order_items)   full scan without the index
-          └─ price_with_tax()                logs a warning for unmapped cities (planted)
+          └─ price_with_tax()                tax by city
   └─ middleware: Server-Timing: db;dur=…, app;dur=… ; X-DB-Queries: 101
 ```
 
@@ -76,13 +76,19 @@ writes its version into the file header) to make sure the committed DB matches t
 
 ## 4. Sensors
 
-`scripts/run_sensors.sh` runs everything in a fixed order and writes raw outputs to `reports/`:
+Three sensors, one per box we kept from the article's diagram:
+
+| Diagram half | Sensor | Kind |
+|---|---|---|
+| Continuous drift detection | Dead code | 🟥 inferential |
+| Continuous runtime feedback | p95 latency `/api/orders` | 🟦 computational |
+| Continuous runtime feedback | Error rate (HTTP 5xx) | 🟦 computational |
+
+`scripts/run_sensors.sh` runs them in a fixed order and writes raw outputs to `reports/`:
 
 | Step | Command | Output |
 |---|---|---|
-| Dependencies | `pip-audit -r requirements.txt -f json` | `pip-audit.json` |
 | Dead code | `vulture app api --min-confidence 60 --ignore-decorators "@router.*,@app.*" --ignore-names row_factory` | `vulture.txt` |
-| Tests + coverage | `pytest --cov=app --cov-report=json` | `pytest.txt`, `coverage.json` |
 | Local runtime | start `uvicorn api.index:app` with logs to `app.log`, then `collect_runtime.py` against it | `runtime-local.json`, `app.log` |
 | Live runtime | `collect_runtime.py --base-url $APP_URL` (if set) | `runtime-live.json` |
 | Report | `build_report.py` | `health-report.json`, `health-report.md` |
@@ -93,21 +99,15 @@ writes its version into the file header) to make sure the committed DB matches t
 - Request mix: 50% `/api/orders?page=1..20`, 40% `/api/users/{id}` (20% of those use IDs that don't exist), 10% `/api/health`.
 - Three warm-up requests first, so Vercel cold starts don't distort p95.
 - Records latency, status, `X-DB-Queries` and `Server-Timing db` for every request, then summarises p50 and p95,
-  average queries, 5xx count per endpoint, the overall error rate and availability.
+  average queries, 5xx count per endpoint, and the overall error rate.
 
 ### How each check decides pass or fail (`build_report.py`)
 
 | Check | Logic |
 |---|---|
-| Dependencies | Count of vulnerabilities in pip-audit JSON ≤ budget |
-| Dead code | vulture findings + `public/js/*.js` files not referenced as `/js/<name>` in any HTML |
-| Test quality | Parse `tests/test_*.py` with `ast`. A test is weak if it has no asserts, or every assert is `assert x`, `assert f(x)` or `assert x is (not) None` |
-| Latency | p95 per endpoint ≤ budget, live numbers preferred |
-| DB queries | Average `X-DB-Queries` on `/api/orders` ≤ budget |
+| Dead code | vulture findings + `public/js/*.js` files not referenced as `/js/<name>` in any HTML; fail if count > budget |
+| Latency | p95 of `/api/orders` ≤ budget, live numbers preferred. Evidence attached: average `X-DB-Queries` per request, and `EXPLAIN QUERY PLAN` for the most frequent `slow query` log lines, marked `FULL TABLE SCAN` when a plan line is `SCAN <real table>` without `INDEX` |
 | Error rate | 5xx (or connection failure) percentage ≤ budget |
-| Availability | `/api/health` 200 percentage ≥ budget |
-| Slow queries | Group `slow query … : <sql>` log lines, run `EXPLAIN QUERY PLAN` with dummy parameters, fail if a plan line is `SCAN <real table>` without `INDEX` (aliases resolved, subquery scans ignored) |
-| Log anomalies | Group warning lines after replacing numbers and `=value` with placeholders; fail if any pattern repeats ≥ budget |
 
 Each check in the JSON carries `details` (evidence), `files` (where to look) and `hint` (direction, not a solution).
 These three fields are what make the agent's job tractable.
@@ -119,19 +119,20 @@ These three fields are what make the agent's job tractable.
   "generated_at": "2026-10-23T16:04:39+00:00",
   "commit": "f42db7b",
   "healthy": false,
-  "failed": 8,
+  "failed": 3,
   "checks": [
     {
-      "id": "db_queries",
-      "name": "DB queries per /api/orders request [live (Vercel)]",
+      "id": "latency_orders",
+      "name": "p95 latency /api/orders [live (Vercel)]",
       "kind": "computational",          // or "inferential"
       "area": "runtime",                // or "codebase"
-      "value": 101.0,
-      "budget": 5,
+      "value": "1734 ms",
+      "budget": "500 ms",
       "ok": false,
-      "details": ["Each page of 50 orders runs 101.0 queries on average …"],
-      "files": ["app/routes/orders.py"],
-      "hint": "Fetch the page with one query that JOINs users …"
+      "details": ["Each page of 50 orders runs 101.0 DB queries on average …",
+                  "5372x slow query FULL TABLE SCAN: SELECT SUM(qty * unit_price) … -> plan: SCAN order_items"],
+      "files": ["app/routes/orders.py", "migrations/"],
+      "hint": "Find where the time goes. If one request runs a query per order (N+1) …"
     }
   ]
 }
@@ -188,9 +189,10 @@ The workflow has `contents: write` (to publish reports and push the agent branch
 
 ## 8. Known limitations
 
-- **Live log signals are approximated.** Slow-query and warning checks use the local server's log in CI,
+- **Only three sensors.** The article's diagram also shows dependabot, coverage quality, availability, log anomalies
+  and response-quality sampling. They are left out to keep the demo short; each would be one more function in `build_report.py`.
+- **Slow-query evidence comes from the local log.** The `EXPLAIN` details on the latency check use the local server's log in CI,
   because reading Vercel's runtime logs would need a Vercel token. The code is identical, so the signal is the same.
-- **The test-quality check is a heuristic.** It catches existence-only asserts, not every weak test. The agent is asked to confirm.
 - **Agent output varies.** The same report can give different fixes. Verification and the retry make failures safe, not impossible.
 - **`ci` doesn't run on agent PRs** (GitHub doesn't trigger workflows from `GITHUB_TOKEN` events). The agent runs the same checks itself.
 - **The repo grows by about 5 MB per fix cycle**, because the rebuilt `data/shop.db` is committed.

@@ -4,9 +4,22 @@ log = logging.getLogger("app.pricing")
 
 DEFAULT_TAX = 0.18
 REGION_TAX = {
-    "Delhi": 0.18,
-    "Mumbai": 0.18,
     "Bengaluru": 0.18,
+    "Bhopal": 0.18,
+    "Chennai": 0.18,
+    "Delhi": 0.18,
+    "Guwahati": 0.18,
+    "Hyderabad": 0.18,
+    "Indore": 0.18,
+    "Jaipur": 0.18,
+    "Kochi": 0.18,
+    "Kolkata": 0.18,
+    "Lucknow": 0.18,
+    "Mumbai": 0.18,
+    "Nagpur": 0.18,
+    "Patna": 0.18,
+    "Pune": 0.18,
+    "Surat": 0.18,
 }
 
 

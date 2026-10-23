@@ -4,7 +4,7 @@ A working demo of the **"continuous drift and health sensors"** idea from Martin
 [Harness Engineering](https://martinfowler.com/articles/harness-engineering.html).
 
 A small shop app ships with **planted problems** in its code and its runtime behaviour.
-A GitHub Action runs **sensors** against the codebase and the live deployment, builds a
+A GitHub Action runs **three sensors** (one on the codebase, two on the live deployment), builds a
 **health report**, and a **Gemini coding agent** fixes what fails and opens a **pull request**.
 A human merges, Vercel redeploys, the sensors run again, and the report turns green.
 
@@ -18,9 +18,9 @@ A human merges, Vercel redeploys, the sensors run again, and the report turns gr
 
 ```
    ┌──────────────── GitHub Actions: health-check ────────────────┐
-   │  codebase sensors      runtime sensors (local + live Vercel) │
-   │  pip-audit · vulture   load test · X-DB-Queries · EXPLAIN    │
-   │  test-quality check    error rate · log aggregation          │
+   │  drift detection        runtime feedback (local + live)      │
+   │  dead code              p95 latency · error rate             │
+   │  (vulture + JS scan)    (load test)                          │
    └───────────────┬──────────────────────────────────────────────┘
                    ▼
         health report (budgets.json)  ──►  /health.html
@@ -55,12 +55,15 @@ A human merges, Vercel redeploys, the sensors run again, and the report turns gr
 
 ## What the demo shows
 
-The article's diagram has two halves, and this repo implements both:
+The article's diagram has two halves. This repo implements both with a deliberately small set of sensors:
 
-| Diagram half | What it means | Here |
+| Diagram half | What it means | Sensor here |
 |---|---|---|
-| **Continuous drift detection** (codebase) | Problems that build up slowly in the code: outdated dependencies, dead code, weak tests | `pip-audit`, `vulture`, a test-quality check |
-| **Continuous runtime feedback** (runtime) | Signals from the running system: latency, errors, availability, log anomalies | A load test against the live app, timing headers, `EXPLAIN QUERY PLAN`, log aggregation |
+| **Continuous drift detection** (codebase) | Problems that build up slowly in the code | **Dead code**: `vulture` + a scan for JS files no page loads |
+| **Continuous runtime feedback** (runtime) | Signals from the running system | **p95 latency** and **error rate**, from a load test against the live app |
+
+The article's diagram lists more sensors (dependabot, code-coverage quality, availability, log anomalies,
+response-quality sampling). They are left out on purpose so the loop is easy to follow in a short demo.
 
 Each sensor is labelled like the diagram's legend:
 
@@ -76,7 +79,7 @@ Each sensor is labelled like the diagram's legend:
 | Frontend | HTML, CSS, JavaScript (no framework, no build step) | Vercel CDN (`public/`) |
 | Backend | FastAPI, Python 3.12 | One Vercel Python function (FastAPI preset) |
 | Database | SQLite (`data/shop.db`, read-only, about 5 MB) | Bundled with the function |
-| Sensors | pip-audit, vulture, pytest + pytest-cov, httpx load test | GitHub Actions |
+| Sensors | vulture, httpx load test | GitHub Actions |
 | Coding agent | Gemini API (free tier, newest stable "flash" model) | GitHub Actions |
 | Reports | JSON on the `health-reports` branch | GitHub, read by `/health.html` |
 
@@ -135,19 +138,15 @@ All sensors run through [`scripts/run_sensors.sh`](scripts/run_sensors.sh), in G
 
 | # | Check | Tool | Kind | Area | Budget |
 |---|---|---|---|---|---|
-| 1 | Vulnerable dependencies | `pip-audit -r requirements.txt` | 🟦 | codebase | 0 |
-| 2 | Dead code | `vulture` + a scan for JS files no HTML page loads | 🟥 | codebase | 0 |
-| 3 | Test quality | AST check for tests whose asserts only check existence or truthiness, plus coverage | 🟥 | codebase | 0 weak tests |
-| 4 | p95 latency `/api/orders` | load test (`scripts/collect_runtime.py`) | 🟦 | runtime | 500 ms |
-| 5 | p95 latency `/api/users/{id}` | load test | 🟦 | runtime | 300 ms |
-| 6 | DB queries per `/api/orders` request | `X-DB-Queries` header | 🟦 | runtime | ≤ 5 |
-| 7 | Error rate (HTTP 5xx) | load test (20% of customer lookups use IDs that don't exist) | 🟦 | runtime | ≤ 1% |
-| 8 | Availability `/api/health` | load test | 🟦 | runtime | ≥ 99% |
-| 9 | Slow queries doing full table scans | `slow query` log lines + `EXPLAIN QUERY PLAN` | 🟦 | runtime | 0 |
-| 10 | Repeated log warnings | warning lines grouped by message pattern | 🟥 | runtime | < 100 of one kind |
+| 1 | Dead code | `vulture` + a scan for JS files no HTML page loads | 🟥 | codebase | 0 items |
+| 2 | p95 latency `/api/orders` | load test (`scripts/collect_runtime.py`) | 🟦 | runtime | 500 ms |
+| 3 | Error rate (HTTP 5xx) | load test (20% of customer lookups use IDs that don't exist) | 🟦 | runtime | ≤ 1% |
 
 Runtime checks use the **live Vercel deployment** when `APP_URL` is set, and the local server otherwise.
-Slow-query and log checks always use the local server's log, because Vercel's logs are not available to the Action.
+
+The latency check also collects **evidence** for the agent: the average `X-DB-Queries` per request (shows the N+1 loop)
+and `EXPLAIN QUERY PLAN` for the most frequent `slow query` lines in the local server log (shows the full table scan).
+These are details of the latency check, not separate pass/fail checks.
 
 Outputs (in `reports/`, git-ignored):
 
@@ -155,9 +154,9 @@ Outputs (in `reports/`, git-ignored):
 |---|---|
 | `health-report.json` | Every check: id, name, kind, area, value, budget, ok, details, files, hint |
 | `health-report.md` | Human-readable table plus failing-check details. Also the agent's input. |
-| `pip-audit.json`, `vulture.txt`, `coverage.json`, `pytest.txt` | Raw tool output |
+| `vulture.txt` | Raw vulture output |
 | `runtime-local.json`, `runtime-live.json` | Load-test summaries |
-| `app.log` | Local server log (slow queries, warnings) |
+| `app.log` | Local server log (slow queries) |
 
 ## The coding agent
 
@@ -178,23 +177,21 @@ The agent never pushes to `main`. A human reviews and merges.
 
 | # | Problem | Where | Sensor that finds it | Expected fix |
 |---|---|---|---|---|
-| 1 | `requests 2.25.1`, `urllib3 1.26.5`, `idna 2.10`, `certifi 2020.12.5` with known CVEs | `requirements.txt` | pip-audit | Upgrade, or remove (nothing imports them) |
-| 2 | Unused module `legacy_discount.py`, unused `old_tax_rate()`, unused `import json` | `app/` | vulture | Delete |
-| 3 | `legacy-charts.js` is never loaded | `public/js/` | unreferenced JS scan | Delete |
-| 4 | Tests only check `is not None` / truthiness | `tests/test_api.py` | test-quality check | Assert status codes and values; add a 404 test |
-| 5 | N+1: one query per order for the customer and another for the total (101 per page) | `app/routes/orders.py` | DB queries per request, p95 latency | One query with a JOIN |
-| 6 | No index on `order_items.order_id` | `migrations/001_init.sql` | slow queries + EXPLAIN | New migration `002_*.sql` with `CREATE INDEX` |
-| 7 | `None["id"]` crash for a missing customer → HTTP 500 | `app/routes/users.py` | error rate | Return HTTP 404 |
-| 8 | 13 of 16 cities have no tax mapping, so most orders log a warning | `app/services/pricing.py` | repeated log warnings | Add the missing mappings |
+| 1 | Unused module `legacy_discount.py`, unused `old_tax_rate()`, unused `import json` | `app/` | dead code (vulture) | Delete |
+| 2 | `legacy-charts.js` is never loaded | `public/js/` | dead code (JS scan) | Delete |
+| 3 | N+1: one query per order for the customer and another for the total (101 per page) | `app/routes/orders.py` | p95 latency | One query with a JOIN |
+| 4 | No index on `order_items.order_id`, so every total is a full table scan | `migrations/001_init.sql` | p95 latency (EXPLAIN evidence) | New migration `002_*.sql` with `CREATE INDEX` |
+| 5 | `None["id"]` crash for a missing customer → HTTP 500 | `app/routes/users.py` | error rate | Return HTTP 404 |
 
-Measured before and after the fixes (local):
+Measured before and after the fixes:
 
 | | Planted | Fixed |
 |---|---|---|
-| `/api/orders` p95 | ~1,260 ms | ~44 ms |
+| `/api/orders` p95 (local) | ~600 ms | ~17 ms |
+| `/api/orders` p95 (live Vercel) | ~1,700 ms | under 500 ms |
 | DB queries per orders page | 101 | 1 |
-| Error rate | ~3% | 0% |
-| Checks passing | 2 / 10 | 10 / 10 |
+| Error rate | ~12% | 0% |
+| Checks passing | 0 / 3 | 3 / 3 |
 
 ## Setup
 
@@ -268,7 +265,7 @@ About 5 minutes.
 
 1. **The problem.** Open the [Orders page](https://harness-demo-beige.vercel.app/): about 1–2 s and **101 DB queries**.
    Look up customer **5000** on the Customers page: **HTTP 500**.
-2. **Sensors.** Run **health-check**. Show the job summary or [`/health.html`](https://harness-demo-beige.vercel.app/health.html): **8 of 10 checks failing**, each labelled 🟦 or 🟥.
+2. **Sensors.** Run **health-check**. Show the job summary or [`/health.html`](https://harness-demo-beige.vercel.app/health.html): **3 of 3 checks failing**: dead code 🟥, latency 🟦, error rate 🟦.
 3. **Agent.** The Gemini agent opens a PR. Walk through it: each change maps to a failing check, with the evidence in the description.
 4. **Preview.** Open the Vercel preview link on the PR: the Orders page is fast, with 1 DB query.
 5. **Human approval.** Merge the PR. Vercel deploys to production.
@@ -299,9 +296,9 @@ harness-demo/
 │   └── services/               pricing.py*  legacy_discount.py*
 ├── migrations/001_init.sql*    Schema (built into data/shop.db)
 ├── data/shop.db                Seeded database (committed)
-├── tests/test_api.py*          Weak tests (planted)
+├── tests/test_api.py           API tests
 ├── scripts/
-│   ├── run_sensors.sh          Run every sensor and build the report
+│   ├── run_sensors.sh          Run the three sensors and build the report
 │   ├── collect_runtime.py      Load test and runtime metrics
 │   ├── build_report.py         Combine sensors, apply budgets → JSON + Markdown
 │   ├── agent.py                Gemini coding agent
@@ -309,8 +306,8 @@ harness-demo/
 │   ├── build_db.py             Build or check data/shop.db
 │   └── demo_reset.sh           Re-plant the problems through a PR
 ├── budgets.json                What "healthy" means
-├── requirements.txt*           App dependencies (Vercel installs these)
-├── requirements-dev.txt        Sensor and test tools
+├── requirements.txt           App dependencies (Vercel installs these)
+├── requirements-dev.txt        Local server, load test, test and dead-code tools
 ├── .github/workflows/          health-check.yml  ci.yml
 ├── vercel.json  .vercelignore  .python-version  .env.example
 ├── README.md  ARCHITECTURE.md  CLAUDE.md
