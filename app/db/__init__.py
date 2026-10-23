@@ -1,16 +1,14 @@
 """SQLite access with per-request query counting and slow-query logging.
 
 The counters feed the Server-Timing and X-DB-Queries response headers,
-which the runtime sensors read.
+which the runtime sensors read. All SQL must go through query().
 """
 import contextvars
 import logging
 import sqlite3
 import time
-from pathlib import Path
 
-DB_PATH = Path(__file__).resolve().parent.parent / "data" / "shop.db"
-SLOW_QUERY_MS = 5
+from app.core.config import settings
 
 log = logging.getLogger("app.db")
 _stats = contextvars.ContextVar("db_stats", default=None)
@@ -23,7 +21,7 @@ def start_request_stats():
 
 
 def connect():
-    con = sqlite3.connect(f"file:{DB_PATH}?mode=ro&immutable=1", uri=True, check_same_thread=False)
+    con = sqlite3.connect(f"file:{settings.db_path}?mode=ro&immutable=1", uri=True, check_same_thread=False)
     con.row_factory = sqlite3.Row
     return con
 
@@ -37,6 +35,6 @@ def query(con, sql, params=()):
     if stats is not None:
         stats["queries"] += 1
         stats["ms"] += ms
-    if ms >= SLOW_QUERY_MS:
+    if ms >= settings.slow_query_ms:
         log.warning("slow query %.1fms: %s", ms, " ".join(sql.split()))
     return rows

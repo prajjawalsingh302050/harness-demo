@@ -8,7 +8,8 @@ For setup and the demo script, see [README.md](README.md).
 ```
                     ┌──────────────────────────── Vercel ─────────────────────────────┐
    Browser ───────► │  CDN: public/*.html, css, js                                     │
-                    │  Python function (FastAPI preset): api/index.py ─► app/ ─► SQLite │
+                    │  Python function (FastAPI preset): api/index.py ─► app/main.py ─► │
+                    │    routes ─► service registry ─► services ─► repositories ─► SQLite │
                     └───────────────▲───────────────────────────────────────▲─────────┘
                                     │ load test (APP_URL)                   │ deploy on push / PR preview
                                     │                                       │
@@ -40,18 +41,60 @@ There are three independent parts:
 
 ## 3. Backend
 
+### Layers
+
+```
+api/index.py                  Vercel entry point: imports `app` from app.main
+app/
+├── main.py                   create_app(): logging, middleware, router registry, static UI (local only)
+├── core/
+│   ├── config.py             Settings (DB path, slow-query threshold, page size, ...) read once from env
+│   ├── logging.py            Log format and level
+│   └── middleware.py         Server-Timing + X-DB-Queries headers
+├── api/
+│   ├── router.py             Router registry: ROUTERS list, all mounted under /api
+│   ├── deps.py               Per-request dependencies: get_db() → get_services()
+│   └── routes/               orders.py  users.py  health.py   (HTTP only, no logic, no SQL)
+├── services/
+│   ├── registry.py           ServiceRegistry: wires repositories into services, per request
+│   ├── orders.py             OrderService: orders page, customer, taxed total
+│   ├── users.py              UserService: customer + order count
+│   ├── health.py             HealthService: DB ping
+│   ├── pricing.py            Tax by city
+│   └── legacy_discount.py    (planted dead code)
+├── repositories/             orders.py  users.py   (every SQL statement, via app.db.query)
+├── schemas/                  Pydantic response models = the API contract
+└── db/                       connect(), query(): read-only SQLite, query counting, slow-query log
+```
+
+| Layer | Knows about | Never does |
+|---|---|---|
+| Routes | HTTP: paths, query params, status codes, `response_model` | SQL, business rules |
+| Service registry | Which repository each service needs | Logic |
+| Services | Business rules (paging, tax, what a missing customer means) | SQL, HTTP details |
+| Repositories | SQL, through `app.db.query()` so it is counted and timed | Business rules |
+| Schemas | The JSON contract | Anything else |
+
+Dependency flow per request: `get_db()` opens one read-only connection and closes it after the response;
+`get_services()` wraps it in a `ServiceRegistry`; the route calls `services.orders` / `services.users` / `services.health`.
+Services are `cached_property`, so a request only builds what it uses.
+
 ### Request flow
 
 ```
 GET /api/orders?page=2
-  └─ timing_headers middleware: start per-request stats (contextvar)
-      └─ orders.list_orders()
-          ├─ connect()                       sqlite3, file:data/shop.db?mode=ro&immutable=1
-          ├─ query(... orders page ...)      counted, timed, logged if > 5 ms
-          ├─ for each order:                 (planted N+1)
-          │    query(users by id)
-          │    query(SUM over order_items)   full scan without the index
-          └─ price_with_tax()                tax by city
+  └─ core/middleware.timing_headers        start per-request stats (contextvar)
+      └─ api/routes/orders.list_orders      HTTP only
+          ├─ Depends(get_services)
+          │    └─ get_db() → connect()       sqlite3, file:data/shop.db?mode=ro&immutable=1 (closed after the request)
+          │    └─ ServiceRegistry(con)
+          └─ services.orders.list_orders()   OrderService
+              ├─ order_repo.list_page()      query(): counted, timed, logged if > 5 ms
+              ├─ for each order:             (planted N+1)
+              │    user_repo.get()
+              │    order_repo.item_total()   full scan without the index
+              └─ price_with_tax()            tax by city
+          └─ response_model=OrdersPage       validates the response shape
   └─ middleware: Server-Timing: db;dur=…, app;dur=… ; X-DB-Queries: 101
 ```
 
@@ -131,7 +174,7 @@ These three fields are what make the agent's job tractable.
       "ok": false,
       "details": ["Each page of 50 orders runs 101.0 DB queries on average …",
                   "5372x slow query FULL TABLE SCAN: SELECT SUM(qty * unit_price) … -> plan: SCAN order_items"],
-      "files": ["app/routes/orders.py", "migrations/"],
+      "files": ["app/services/orders.py", "app/repositories/orders.py", "migrations/"],
       "hint": "Find where the time goes. If one request runs a query per order (N+1) …"
     }
   ]

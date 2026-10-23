@@ -13,9 +13,9 @@ and a Gemini coding agent that fixes them through PRs. See [README.md](README.md
 They are the input to the demo. Fixing them by hand on `main` breaks the demo.
 
 Planted on purpose (each one is caught by one of the three sensors):
-- dead code: `app/services/legacy_discount.py`, `old_tax_rate()` in `pricing.py`, `import json` in `routes/orders.py`, `public/js/legacy-charts.js`
-- p95 latency: the N+1 loop in `app/routes/orders.py` and the missing `order_items.order_id` index in `migrations/001_init.sql`
-- error rate: the HTTP 500 for a missing customer in `app/routes/users.py`
+- dead code: `app/services/legacy_discount.py`, `old_tax_rate()` in `pricing.py`, `import json` in `app/api/routes/orders.py`, `public/js/legacy-charts.js`
+- p95 latency: the N+1 loop in `app/services/orders.py` and the missing `order_items.order_id` index in `migrations/001_init.sql`
+- error rate: the HTTP 500 for a missing customer in `app/services/users.py`
 
 ## Sensors
 
@@ -42,7 +42,11 @@ PYTHON=.venv/bin/python bash scripts/run_sensors.sh   # all sensors → reports/
 ## Conventions
 
 - **Python 3.12**, FastAPI, standard-library `sqlite3`. Sync route functions (SQLite is blocking).
-- **All SQL goes through `app.db.query()`**, so it is counted in `X-DB-Queries` and slow queries are logged.
+- **Layered backend:** `app/api/routes/` (HTTP only) → `app/services/registry.py` (service registry) →
+  `app/services/` (business logic) → `app/repositories/` (SQL) → `app/db/`. Routers are registered in
+  `app/api/router.py` (`ROUTERS`); response models live in `app/schemas/`; settings in `app/core/config.py`.
+- **All SQL lives in repositories and goes through `app.db.query()`**, so it is counted in `X-DB-Queries` and slow queries are logged.
+- `app/schemas/` is excluded from vulture (Pydantic fields are read by reflection).
 - **Never edit `migrations/001_init.sql`.** Add a new numbered file (`002_*.sql`, `003_*.sql`), then run `scripts/build_db.py` and commit `data/shop.db`.
 - **Keep API response shapes stable.** The UI in `public/js/` depends on them.
 - **Frontend is plain HTML/CSS/JS.** No framework, no build step. Every page loads `/js/api.js` or `/js/config.js` plus its own script.
