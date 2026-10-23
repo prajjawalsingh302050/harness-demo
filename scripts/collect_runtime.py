@@ -20,8 +20,8 @@ def pick_request(rnd):
     if roll < 0.5:
         return "orders", f"/api/orders?page={rnd.randint(1, 20)}"
     if roll < 0.9:
-        # About 10% of customer lookups use an ID that does not exist.
-        uid = rnd.randint(1, N_USERS) if rnd.random() < 0.9 else rnd.randint(N_USERS + 1, N_USERS * 2)
+        # About 20% of customer lookups use an ID that does not exist.
+        uid = rnd.randint(1, N_USERS) if rnd.random() < 0.8 else rnd.randint(N_USERS + 1, N_USERS * 2)
         return "users", f"/api/users/{uid}"
     return "health", "/api/health"
 
