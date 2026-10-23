@@ -121,7 +121,7 @@ All sensors run through [`scripts/run_sensors.sh`](scripts/run_sensors.sh), in G
 | 1 | Dead code | `vulture app api` + scan for `public/js/*.js` not referenced by any HTML page | 0 items |
 | 2 | Unused libraries | parse `requirements.txt`, compare with every `import` in `app/` and `api/` | 0 |
 | 3 | p95 latency `/api/people?limit=5000` | load test ([`scripts/collect_runtime.py`](scripts/collect_runtime.py)) | 1000 ms |
-| 4 | Error rate (HTTP 5xx) | load test: 40% "Load 5000", 50% person lookups (1 in 5 use an ID that doesn't exist), 10% health | ≤ 1% |
+| 4 | Error rate (HTTP 5xx) | load test: 2 workers keep clicking "Load 5000", 3 workers do person lookups (every 5th uses an ID that doesn't exist) and health checks | ≤ 1% |
 
 Runtime checks measure the **live Vercel deployment** when `APP_URL` is set, and the local server otherwise.
 The latency check attaches evidence for the agent: queries per request, and `EXPLAIN QUERY PLAN` for slow queries that scan the table.
