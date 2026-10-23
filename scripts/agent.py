@@ -36,7 +36,7 @@ Rules:
   app/services/registry.py wires repositories into services. Response models are in app/schemas/.
 - Keep every API path and JSON response shape the same so the UI keeps working.
   /api/orders must still return {page, page_size, orders: [{id, customer, city, created_at, status, total}]}
-  with the same totals (price_with_tax applied to the order's item sum).
+  with the same totals (the sum of qty * unit_price over the order's items).
 - Do not hide problems: no skipping or deleting tests, no catch-all exception handlers, no raising budgets,
   no deleting logging just to silence a warning. Fix the cause.
 - Dead code: delete only what is unused everywhere in the repo. Keep sqlite3 row_factory.
