@@ -1,4 +1,4 @@
-"""Runtime sensor: send traffic to the app and measure latency, errors and DB queries.
+"""Runtime sensor: send traffic to the app and measure latency and errors (plus DB queries for diagnosis).
 
     python scripts/collect_runtime.py --base-url http://127.0.0.1:8000 --out reports/runtime-local.json
 """
@@ -86,13 +86,11 @@ def summarise(samples, base_url, duration):
         }
     total = len(samples)
     errors = sum(1 for s in samples if s["status"] >= 500 or s["status"] == 0)
-    health = [s for s in samples if s["endpoint"] == "health"]
     return {
         "base_url": base_url,
         "duration_s": duration,
         "requests": total,
         "error_rate_pct": round(100 * errors / total, 2) if total else 0,
-        "availability_pct": round(100 * sum(1 for s in health if s["status"] == 200) / len(health), 2) if health else 0,
         "by_endpoint": by_endpoint,
     }
 

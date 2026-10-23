@@ -36,9 +36,9 @@ Rules:
   with the same totals (price_with_tax applied to the order's item sum).
 - Do not hide problems: no skipping or deleting tests, no catch-all exception handlers, no raising budgets,
   no deleting logging just to silence a warning. Fix the cause.
-- Dependencies: upgrade to a fixed version, or remove packages that nothing imports.
 - Dead code: delete only what is unused everywhere in the repo. Keep sqlite3 row_factory.
-- Tests: assert status codes and concrete values. Include a test that a missing customer returns 404.
+- Tests: when you change behaviour, add a test that asserts the status code and concrete values
+  (e.g. a missing customer returns 404). Keep the existing tests passing.
   The database has users with ids 1..2000, 20000 orders, and the orders page size is 50.
 - pr_title: short, imperative.
 - pr_body: Markdown. One section per failing check: what the sensor found -> what you changed -> why it fixes it.
