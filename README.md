@@ -110,12 +110,48 @@ Styling is a single `css/style.css` with light and dark mode via `prefers-color-
 
 | Item | Details |
 |---|---|
-| Entry point | `api/index.py`: creates the FastAPI app, adds the timing middleware, includes the routers, and mounts `public/` when not on Vercel |
-| Routes | `app/routes/orders.py` `GET /api/orders?page=N` · `app/routes/users.py` `GET /api/users/{id}` · `app/routes/health.py` `GET /api/health` |
-| Data access | `app/db.py`: `connect()` opens SQLite read-only (`mode=ro&immutable=1`); `query()` runs SQL, counts queries per request and logs `slow query` for anything over 5 ms |
-| Business logic | `app/services/pricing.py`: tax by city |
+| Entry point | `api/index.py` imports `app` from `app/main.py`, where `create_app()` sets up logging, middleware, the router registry and (locally) the static UI |
+| Layers | **routes** (HTTP only) → **service registry** → **services** (business logic) → **repositories** (SQL) → **db** |
+| Router registry | `app/api/router.py`: every route module is listed in `ROUTERS` and mounted under `/api` |
+| Service registry | `app/services/registry.py`: `ServiceRegistry(con)` builds repositories and services lazily, once per request. Routes get it with `Depends(get_services)` (`app/api/deps.py`) |
+| Routes | `app/api/routes/orders.py` `GET /api/orders?page=N` · `users.py` `GET /api/users/{id}` · `health.py` `GET /api/health` |
+| Services | `OrderService`, `UserService`, `HealthService` in `app/services/`, plus `pricing.py` (tax by city) |
+| Repositories | `app/repositories/orders.py`, `users.py`: every SQL statement lives here |
+| Schemas | `app/schemas/`: Pydantic response models (`response_model=`), the contract the UI depends on |
+| Data access | `app/db/`: `connect()` opens SQLite read-only (`mode=ro&immutable=1`); `query()` runs SQL, counts queries per request and logs `slow query` for anything over 5 ms |
+| Config | `app/core/config.py`: one `Settings` object (DB path, slow-query threshold, page size, log level) |
+| API docs | Swagger UI at `/api/docs` |
 | Observability | Every response gets `Server-Timing: db;dur=…, app;dur=…` and `X-DB-Queries: N`. The sensors and the UI both read these. |
 | Schema | `migrations/*.sql`, applied in order by `scripts/build_db.py`, which also seeds deterministic data (2,000 users, 20,000 orders, 160,156 order items) |
+
+Backend layout:
+
+```
+api/index.py                  Vercel entry point: imports `app` from app.main
+app/
+├── main.py                   create_app(): logging, middleware, router registry, static UI (local only)
+├── core/
+│   ├── config.py             Settings (DB path, slow-query threshold, page size, ...) read once from env
+│   ├── logging.py            Log format and level
+│   └── middleware.py         Server-Timing + X-DB-Queries headers
+├── api/
+│   ├── router.py             Router registry: ROUTERS list, all mounted under /api
+│   ├── deps.py               Per-request dependencies: get_db() → get_services()
+│   └── routes/               orders.py  users.py  health.py   (HTTP only, no logic, no SQL)
+├── services/
+│   ├── registry.py           ServiceRegistry: wires repositories into services, per request
+│   ├── orders.py             OrderService: orders page, customer, taxed total
+│   ├── users.py              UserService: customer + order count
+│   ├── health.py             HealthService: DB ping
+│   ├── pricing.py            Tax by city
+│   └── legacy_discount.py    (planted dead code)
+├── repositories/             orders.py  users.py   (every SQL statement, via app.db.query)
+├── schemas/                  Pydantic response models = the API contract
+└── db/                       connect(), query(): read-only SQLite, query counting, slow-query log
+```
+
+To add an endpoint: a repository method for the SQL, a service method for the logic, a route in
+`app/api/routes/`, register the service in `ServiceRegistry` and the router in `ROUTERS`.
 
 API responses:
 
@@ -179,9 +215,9 @@ The agent never pushes to `main`. A human reviews and merges.
 |---|---|---|---|---|
 | 1 | Unused module `legacy_discount.py`, unused `old_tax_rate()`, unused `import json` | `app/` | dead code (vulture) | Delete |
 | 2 | `legacy-charts.js` is never loaded | `public/js/` | dead code (JS scan) | Delete |
-| 3 | N+1: one query per order for the customer and another for the total (101 per page) | `app/routes/orders.py` | p95 latency | One query with a JOIN |
+| 3 | N+1: one query per order for the customer and another for the total (101 per page) | `app/services/orders.py`, `app/repositories/orders.py` | p95 latency | One repository query with a JOIN |
 | 4 | No index on `order_items.order_id`, so every total is a full table scan | `migrations/001_init.sql` | p95 latency (EXPLAIN evidence) | New migration `002_*.sql` with `CREATE INDEX` |
-| 5 | `None["id"]` crash for a missing customer → HTTP 500 | `app/routes/users.py` | error rate | Return HTTP 404 |
+| 5 | `None["id"]` crash for a missing customer → HTTP 500 | `app/services/users.py` | error rate | Return HTTP 404 |
 
 Measured before and after the fixes:
 
@@ -291,9 +327,13 @@ harness-demo/
 │   └── js/  api.js  app.js  user.js  health.js  architecture.js  config.js  legacy-charts.js*
 ├── api/index.py                FastAPI entry point (Vercel function)
 ├── app/
-│   ├── db.py                   SQLite access, query counting, slow-query log
-│   ├── routes/                 orders.py*  users.py*  health.py
-│   └── services/               pricing.py*  legacy_discount.py*
+│   ├── main.py                 App factory
+│   ├── core/                   config.py  logging.py  middleware.py
+│   ├── api/                    router.py (router registry)  deps.py  routes/orders.py*  users.py  health.py
+│   ├── services/               registry.py  orders.py*  users.py*  health.py  pricing.py*  legacy_discount.py*
+│   ├── repositories/           orders.py  users.py
+│   ├── schemas/                Pydantic response models
+│   └── db/                     SQLite access, query counting, slow-query log
 ├── migrations/001_init.sql*    Schema (built into data/shop.db)
 ├── data/shop.db                Seeded database (committed)
 ├── tests/test_api.py           API tests

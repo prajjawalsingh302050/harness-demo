@@ -111,9 +111,10 @@ def latency(runtime, source):
     return check(
         "latency_orders", f"p95 latency /api/orders [{source}]", "computational", "runtime",
         f"{stats['p95_ms']:.0f} ms", f"{budget} ms", stats["p95_ms"] <= budget,
-        details + slow_query_details(), ["app/routes/orders.py", "migrations/"],
-        "Find where the time goes. If one request runs a query per order (N+1), fetch the page with one query that "
-        "JOINs users and aggregates order_items with GROUP BY, keeping the JSON response shape identical. If a slow "
+        details + slow_query_details(), ["app/services/orders.py", "app/repositories/orders.py", "migrations/"],
+        "Find where the time goes. If one request runs a query per order (N+1), add a repository method that fetches "
+        "the page with one query that JOINs users and aggregates order_items, and use it from the service. Keep the "
+        "response shape identical. If a slow "
         "query does a full table scan, add a NEW migration (e.g. migrations/002_add_indexes.sql) with CREATE INDEX. "
         "Never edit 001_init.sql.",
     )
@@ -126,7 +127,7 @@ def error_rate(runtime, source):
         "error_rate", f"Error rate (HTTP 5xx) [{source}]", "computational", "runtime",
         f"{rate}%", f"{BUDGETS['error_rate_pct']}%", rate <= BUDGETS["error_rate_pct"],
         [f"/api/users/{{id}} returned {users['errors_5xx']} server errors out of {users['requests']} requests (lookups of customer IDs that do not exist)"] if users["errors_5xx"] else [],
-        ["app/routes/users.py"],
+        ["app/services/users.py", "app/api/routes/users.py"],
         "Return HTTP 404 with a clear message when the customer does not exist instead of crashing.",
     )
 

@@ -31,12 +31,16 @@ Rules:
 - For action "write", return the COMPLETE new file content, not a diff.
 - Never edit migrations/001_init.sql. Add indexes in a NEW file such as migrations/002_add_indexes.sql
   using CREATE INDEX IF NOT EXISTS.
+- Respect the layers: app/api/routes/ only handles HTTP and calls the service registry; app/services/ holds
+  business logic; app/repositories/ holds every SQL statement, run through app.db.query();
+  app/services/registry.py wires repositories into services. Response models are in app/schemas/.
 - Keep every API path and JSON response shape the same so the UI keeps working.
   /api/orders must still return {page, page_size, orders: [{id, customer, city, created_at, status, total}]}
   with the same totals (price_with_tax applied to the order's item sum).
 - Do not hide problems: no skipping or deleting tests, no catch-all exception handlers, no raising budgets,
   no deleting logging just to silence a warning. Fix the cause.
 - Dead code: delete only what is unused everywhere in the repo. Keep sqlite3 row_factory.
+  If your own fix leaves a function or method unused (e.g. an old repository method), delete it too.
 - Tests: when you change behaviour, add a test that asserts the status code and concrete values
   (e.g. a missing customer returns 404). Keep the existing tests passing.
   The database has users with ids 1..2000, 20000 orders, and the orders page size is 50.
