@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Health Report</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Harness Demo Shop</h1>
+    <nav>
+      <a href="/">Orders</a>
+      <a href="/user.html?id=1">Customers</a>
+      <a href="/health.html">Health</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="card">
+      <div class="toolbar">
+        <h2 style="margin:0">Latest health report</h2>
+        <span id="overall"></span>
+        <span id="generated" class="muted"></span>
+      </div>
+      <p class="muted">
+        Sensors run in GitHub Actions. <span class="kind computational">COMPUTATIONAL</span> checks are deterministic tools;
+        <span class="kind inferential">INFERENTIAL</span> checks need judgement, so the coding agent confirms them.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Check</th><th>Kind</th><th>Area</th><th class="num">Value</th><th class="num">Budget</th><th>Result</th></tr>
+          </thead>
+          <tbody id="checks"><tr><td colspan="6" class="muted">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 style="margin-top:0">History</h2>
+      <p class="muted">One square per health-check run, oldest first.</p>
+      <div class="history" id="history"></div>
+    </section>
+  </main>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/health.js"></script>
+</body>
+</html>

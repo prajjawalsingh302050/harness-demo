@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Customer</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Harness Demo Shop</h1>
+    <nav>
+      <a href="/">Orders</a>
+      <a href="/user.html?id=1">Customers</a>
+      <a href="/health.html">Health</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="card">
+      <form id="lookup" class="toolbar">
+        <label for="user-id">Customer ID</label>
+        <input id="user-id" type="number" min="1" value="1">
+        <button class="primary" type="submit">Look up</button>
+        <span class="muted">Try 1–2000, or 5000 for a missing customer</span>
+        <div class="metrics" id="metrics"></div>
+      </form>
+      <div id="user"></div>
+    </section>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/user.js"></script>
+</body>
+</html>
