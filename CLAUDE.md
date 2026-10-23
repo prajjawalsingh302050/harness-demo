@@ -12,15 +12,15 @@ and a Gemini coding agent that fixes them through PRs. See [README.md](README.md
 **The planted problems are intentional. Do not fix them unless the user explicitly asks.**
 They are the input to the demo. Fixing them by hand on `main` breaks the demo.
 
-Planted on purpose:
-- old pinned packages in `requirements.txt`
-- `app/services/legacy_discount.py`, `old_tax_rate()` in `pricing.py`, `import json` in `routes/orders.py`
-- `public/js/legacy-charts.js`
-- weak asserts in `tests/test_api.py`
-- the N+1 loop in `app/routes/orders.py`
-- the missing `order_items.order_id` index in `migrations/001_init.sql`
-- the HTTP 500 for a missing customer in `app/routes/users.py`
-- the missing city tax mappings in `app/services/pricing.py`
+Planted on purpose (each one is caught by one of the three sensors):
+- dead code: `app/services/legacy_discount.py`, `old_tax_rate()` in `pricing.py`, `import json` in `routes/orders.py`, `public/js/legacy-charts.js`
+- p95 latency: the N+1 loop in `app/routes/orders.py` and the missing `order_items.order_id` index in `migrations/001_init.sql`
+- error rate: the HTTP 500 for a missing customer in `app/routes/users.py`
+
+## Sensors
+
+Only three, on purpose: **dead code** (continuous drift detection), **p95 latency `/api/orders`** and
+**error rate** (continuous runtime feedback). Don't add more sensors unless the user asks.
 
 If the user wants them fixed, do it on a branch and open a PR, the same way the agent does.
 To restore them afterwards: `bash scripts/demo_reset.sh`.
@@ -57,14 +57,14 @@ These define what "healthy" means and how the agent behaves. Changing them chang
 | File | Role |
 |---|---|
 | `budgets.json` | Pass/fail thresholds |
-| `scripts/build_report.py` | Check logic and report format |
+| `scripts/build_report.py` | Check logic (dead code, latency, error rate) and report format |
 | `scripts/collect_runtime.py` | Load-test mix (the 20% missing-customer share drives the error-rate check) |
 | `scripts/run_sensors.sh` | Sensor order, vulture flags |
 | `scripts/agent.py` | Agent rules, allowed paths (`EDITABLE`, `PROTECTED`), verification |
 | `.github/workflows/health-check.yml` | The loop in CI |
 
-After changing any of them, run the sensors on the planted code (expect 8 of 10 failing) **and** on a fixed copy
-(expect 10 of 10 passing) before committing.
+After changing any of them, run the sensors on the planted code (expect 3 of 3 failing) **and** on a fixed copy
+(expect 3 of 3 passing) before committing.
 
 ## Secrets and accounts
 

@@ -1,6 +1,4 @@
 uvicorn
 httpx
 pytest
-pytest-cov
-pip-audit
 vulture
