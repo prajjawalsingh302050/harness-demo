@@ -115,7 +115,7 @@ Styling is a single `css/style.css` with light and dark mode via `prefers-color-
 | Router registry | `app/api/router.py`: every route module is listed in `ROUTERS` and mounted under `/api` |
 | Service registry | `app/services/registry.py`: `ServiceRegistry(con)` builds repositories and services lazily, once per request. Routes get it with `Depends(get_services)` (`app/api/deps.py`) |
 | Routes | `app/api/routes/orders.py` `GET /api/orders?page=N` · `users.py` `GET /api/users/{id}` · `health.py` `GET /api/health` |
-| Services | `OrderService`, `UserService`, `HealthService` in `app/services/`, plus `pricing.py` (tax by city) |
+| Services | `OrderService`, `UserService`, `HealthService` in `app/services/` |
 | Repositories | `app/repositories/orders.py`, `users.py`: every SQL statement lives here |
 | Schemas | `app/schemas/`: Pydantic response models (`response_model=`), the contract the UI depends on |
 | Data access | `app/db/`: `connect()` opens SQLite read-only (`mode=ro&immutable=1`); `query()` runs SQL, counts queries per request and logs `slow query` for anything over 5 ms |
@@ -140,11 +140,9 @@ app/
 │   └── routes/               orders.py  users.py  health.py   (HTTP only, no logic, no SQL)
 ├── services/
 │   ├── registry.py           ServiceRegistry: wires repositories into services, per request
-│   ├── orders.py             OrderService: orders page, customer, taxed total
+│   ├── orders.py             OrderService: orders page, customer, order total
 │   ├── users.py              UserService: customer + order count
-│   ├── health.py             HealthService: DB ping
-│   ├── pricing.py            Tax by city
-│   └── legacy_discount.py    (planted dead code)
+│   └── health.py             HealthService: DB ping
 ├── repositories/             orders.py  users.py   (every SQL statement, via app.db.query)
 ├── schemas/                  Pydantic response models = the API contract
 └── db/                       connect(), query(): read-only SQLite, query counting, slow-query log
@@ -159,7 +157,7 @@ API responses:
 // GET /api/orders?page=1
 { "page": 1, "page_size": 50,
   "orders": [ { "id": 6939, "customer": "Ishaan Mehta", "city": "Jaipur",
-                "created_at": "2026-10-17 23:48:00", "status": "cancelled", "total": 31019.84 } ] }
+                "created_at": "2026-10-17 23:48:00", "status": "cancelled", "total": 26288.0 } ] }
 
 // GET /api/users/1
 { "id": 1, "name": "…", "email": "…@example.com", "city": "…", "order_count": 12 }
@@ -213,7 +211,7 @@ The agent never pushes to `main`. A human reviews and merges.
 
 | # | Problem | Where | Sensor that finds it | Expected fix |
 |---|---|---|---|---|
-| 1 | Unused module `legacy_discount.py`, unused `old_tax_rate()`, unused `import json` | `app/` | dead code (vulture) | Delete |
+| 1 | Unused `import json` | `app/api/routes/orders.py` | dead code (vulture) | Delete |
 | 2 | `legacy-charts.js` is never loaded | `public/js/` | dead code (JS scan) | Delete |
 | 3 | N+1: one query per order for the customer and another for the total (101 per page) | `app/services/orders.py`, `app/repositories/orders.py` | p95 latency | One repository query with a JOIN |
 | 4 | No index on `order_items.order_id`, so every total is a full table scan | `migrations/001_init.sql` | p95 latency (EXPLAIN evidence) | New migration `002_*.sql` with `CREATE INDEX` |
@@ -330,7 +328,7 @@ harness-demo/
 │   ├── main.py                 App factory
 │   ├── core/                   config.py  logging.py  middleware.py
 │   ├── api/                    router.py (router registry)  deps.py  routes/orders.py*  users.py  health.py
-│   ├── services/               registry.py  orders.py*  users.py*  health.py  pricing.py*  legacy_discount.py*
+│   ├── services/               registry.py  orders.py*  users.py*  health.py
 │   ├── repositories/           orders.py  users.py
 │   ├── schemas/                Pydantic response models
 │   └── db/                     SQLite access, query counting, slow-query log

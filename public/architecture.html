@@ -129,7 +129,7 @@
         <table>
           <thead><tr><th>Problem</th><th>Where</th><th>Expected fix</th></tr></thead>
           <tbody>
-            <tr><td>Unused module, function, import and JS file</td><td><code>legacy_discount.py</code>, <code>pricing.py</code>, <code>api/routes/orders.py</code>, <code>legacy-charts.js</code></td><td>Delete</td></tr>
+            <tr><td>Unused import and JS file</td><td><code>api/routes/orders.py</code>, <code>legacy-charts.js</code></td><td>Delete</td></tr>
             <tr><td>N+1 queries (101 per page)</td><td><code>services/orders.py</code></td><td>One JOIN query in the repository</td></tr>
             <tr><td>Missing index on <code>order_items.order_id</code></td><td><code>migrations/001_init.sql</code></td><td>New migration with an index</td></tr>
             <tr><td>HTTP 500 for a missing customer</td><td><code>services/users.py</code></td><td>Return 404</td></tr>
