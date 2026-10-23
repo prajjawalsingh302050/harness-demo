@@ -102,14 +102,9 @@
         <table>
           <thead><tr><th>Area</th><th>Check</th><th>Tool</th><th>Kind</th></tr></thead>
           <tbody>
-            <tr><td>Codebase</td><td>Vulnerable dependencies</td><td>pip-audit</td><td><span class="kind computational">COMPUTATIONAL</span></td></tr>
-            <tr><td>Codebase</td><td>Dead code</td><td>vulture + unreferenced JS scan</td><td><span class="kind inferential">INFERENTIAL</span></td></tr>
-            <tr><td>Codebase</td><td>Test quality</td><td>AST check + coverage</td><td><span class="kind inferential">INFERENTIAL</span></td></tr>
-            <tr><td>Runtime</td><td>p95 latency</td><td>load test</td><td><span class="kind computational">COMPUTATIONAL</span></td></tr>
-            <tr><td>Runtime</td><td>DB queries per request (N+1)</td><td>X-DB-Queries header</td><td><span class="kind computational">COMPUTATIONAL</span></td></tr>
-            <tr><td>Runtime</td><td>Error rate and availability</td><td>load test</td><td><span class="kind computational">COMPUTATIONAL</span></td></tr>
-            <tr><td>Runtime</td><td>Slow queries with full scans</td><td>slow-query log + EXPLAIN QUERY PLAN</td><td><span class="kind computational">COMPUTATIONAL</span></td></tr>
-            <tr><td>Runtime</td><td>Repeated log warnings</td><td>log aggregation</td><td><span class="kind inferential">INFERENTIAL</span></td></tr>
+            <tr><td>Codebase (drift detection)</td><td>Dead code</td><td>vulture + unreferenced JS scan</td><td><span class="kind inferential">INFERENTIAL</span></td></tr>
+            <tr><td>Runtime (feedback)</td><td>p95 latency <code>/api/orders</code></td><td>load test (evidence: X-DB-Queries, EXPLAIN QUERY PLAN)</td><td><span class="kind computational">COMPUTATIONAL</span></td></tr>
+            <tr><td>Runtime (feedback)</td><td>Error rate (HTTP 5xx)</td><td>load test</td><td><span class="kind computational">COMPUTATIONAL</span></td></tr>
           </tbody>
         </table>
       </div>
@@ -122,13 +117,10 @@
         <table>
           <thead><tr><th>Problem</th><th>Where</th><th>Expected fix</th></tr></thead>
           <tbody>
-            <tr><td>Old packages with known CVEs</td><td><code>requirements.txt</code></td><td>Upgrade or remove</td></tr>
             <tr><td>Unused module, function, import and JS file</td><td><code>legacy_discount.py</code>, <code>pricing.py</code>, <code>orders.py</code>, <code>legacy-charts.js</code></td><td>Delete</td></tr>
-            <tr><td>Tests that only check “not None”</td><td><code>tests/test_api.py</code></td><td>Assert status codes and values</td></tr>
             <tr><td>N+1 queries (101 per page)</td><td><code>app/routes/orders.py</code></td><td>One JOIN query</td></tr>
             <tr><td>Missing index on <code>order_items.order_id</code></td><td><code>migrations/001_init.sql</code></td><td>New migration with an index</td></tr>
             <tr><td>HTTP 500 for a missing customer</td><td><code>app/routes/users.py</code></td><td>Return 404</td></tr>
-            <tr><td>Warning logged on most orders</td><td><code>app/services/pricing.py</code></td><td>Add the missing tax mappings</td></tr>
           </tbody>
         </table>
       </div>
