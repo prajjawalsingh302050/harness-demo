@@ -12,17 +12,18 @@ from pathlib import Path
 
 import httpx
 
-N_USERS = 2_000
+N_PEOPLE = 10_000
 
 
 def pick_request(rnd):
     roll = rnd.random()
-    if roll < 0.5:
-        return "orders", f"/api/orders?page={rnd.randint(1, 20)}"
+    if roll < 0.4:
+        # The "Load 5000 people" button.
+        return "people", "/api/people?limit=5000"
     if roll < 0.9:
-        # About 20% of customer lookups use an ID that does not exist.
-        uid = rnd.randint(1, N_USERS) if rnd.random() < 0.8 else rnd.randint(N_USERS + 1, N_USERS * 2)
-        return "users", f"/api/users/{uid}"
+        # About 20% of person lookups use an ID that does not exist.
+        pid = rnd.randint(1, N_PEOPLE) if rnd.random() < 0.8 else rnd.randint(N_PEOPLE + 1, N_PEOPLE * 2)
+        return "person", f"/api/people/{pid}"
     return "health", "/api/health"
 
 
@@ -39,7 +40,12 @@ async def worker(client, deadline, samples, rnd):
         name, path = pick_request(rnd)
         started = time.perf_counter()
         try:
-            response = await client.get(path)
+            try:
+                response = await client.get(path)
+            except (httpx.ReadError, httpx.RemoteProtocolError):
+                # The server closed a pooled keep-alive connection (it does after a 500). Retry once, like a browser.
+                started = time.perf_counter()
+                response = await client.get(path)
             status = response.status_code
             queries = int(response.headers.get("x-db-queries", 0))
             match = re.search(r"db;dur=([\d.]+)", response.headers.get("server-timing", ""))
@@ -72,7 +78,7 @@ async def run(base_url, duration, concurrency, seed):
 
 def summarise(samples, base_url, duration):
     by_endpoint = {}
-    for name in ("orders", "users", "health"):
+    for name in ("people", "person", "health"):
         rows = [s for s in samples if s["endpoint"] == name]
         latencies = [s["ms"] for s in rows]
         db = [s["db_ms"] for s in rows if s["db_ms"] is not None]
@@ -108,9 +114,9 @@ def main():
     summary = summarise(samples, args.base_url, args.duration)
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps(summary, indent=2))
-    orders = summary["by_endpoint"]["orders"]
+    people = summary["by_endpoint"]["people"]
     print(f"{args.base_url}: {summary['requests']} requests, errors {summary['error_rate_pct']}%, "
-          f"orders p95 {orders['p95_ms']} ms, {orders['avg_db_queries']} queries/request")
+          f"5000-people p95 {people['p95_ms']} ms, {people['avg_db_queries']} queries/request")
 
 
 if __name__ == "__main__":

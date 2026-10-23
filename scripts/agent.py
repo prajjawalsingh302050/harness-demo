@@ -31,19 +31,19 @@ Rules:
 - For action "write", return the COMPLETE new file content, not a diff.
 - Never edit migrations/001_init.sql. Add indexes in a NEW file such as migrations/002_add_indexes.sql
   using CREATE INDEX IF NOT EXISTS.
-- Respect the layers: app/api/routes/ only handles HTTP and calls the service registry; app/services/ holds
-  business logic; app/repositories/ holds every SQL statement, run through app.db.query();
-  app/services/registry.py wires repositories into services. Response models are in app/schemas/.
-- Keep every API path and JSON response shape the same so the UI keeps working.
-  /api/orders must still return {page, page_size, orders: [{id, customer, city, created_at, status, total}]}
-  with the same totals (the sum of qty * unit_price over the order's items).
+- Keep the backend flat: app/routes.py holds the endpoints, app/db.py the database access.
+  All SQL must go through app.db.query() so it is counted.
+- Keep every API path and JSON response shape the same so the UI keeps working:
+  /api/people?limit=N returns {count, people: [{id, name, email, city}]} ordered by id (max 5000),
+  /api/people/{id} returns {id, name, email, city}, /api/health returns {status: "ok"}.
 - Do not hide problems: no skipping or deleting tests, no catch-all exception handlers, no raising budgets,
   no deleting logging just to silence a warning. Fix the cause.
 - Dead code: delete only what is unused everywhere in the repo. Keep sqlite3 row_factory.
-  If your own fix leaves a function or method unused (e.g. an old repository method), delete it too.
+  If your own fix leaves a function unused (e.g. an old lookup helper), delete it too.
+- Unused libraries: remove packages from requirements.txt that no file in app/ or api/ imports. Keep fastapi.
 - Tests: when you change behaviour, add a test that asserts the status code and concrete values
-  (e.g. a missing customer returns 404). Keep the existing tests passing.
-  The database has users with ids 1..2000, 20000 orders, and the orders page size is 50.
+  (e.g. a missing person returns 404). Keep the existing tests passing.
+  The database has one table, people, with ids 1..10000.
 - pr_title: short, imperative.
 - pr_body: Markdown. One section per failing check: what the sensor found -> what you changed -> why it fixes it.
 """

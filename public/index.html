@@ -3,15 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Orders Dashboard</title>
+  <title>People</title>
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
   <header class="topbar">
-    <h1>Harness Demo Shop</h1>
+    <h1>Harness Demo</h1>
     <nav>
-      <a href="/">Orders</a>
-      <a href="/user.html?id=1">Customers</a>
+      <a href="/">People</a>
+      <a href="/person.html?id=1">Person</a>
       <a href="/health.html">Health</a>
       <a href="/architecture.html">How it works</a>
     </nav>
@@ -20,25 +20,18 @@
   <main>
     <section class="card">
       <div class="toolbar">
-        <button id="prev">← Prev</button>
-        <span id="page-label" class="muted">Page 1</span>
-        <button id="next">Next →</button>
+        <button data-limit="50">Load 50 people</button>
+        <button class="primary" data-limit="5000">Load 5000 people</button>
+        <span id="count" class="muted"></span>
         <div class="metrics" id="metrics"></div>
       </div>
       <div class="table-wrap">
         <table>
           <thead>
-            <tr>
-              <th>Order</th>
-              <th>Customer</th>
-              <th>City</th>
-              <th>Date</th>
-              <th>Status</th>
-              <th class="num">Total (₹)</th>
-            </tr>
+            <tr><th>ID</th><th>Name</th><th>Email</th><th>City</th></tr>
           </thead>
-          <tbody id="orders">
-            <tr><td colspan="6" class="muted">Loading…</td></tr>
+          <tbody id="people">
+            <tr><td colspan="4" class="muted">Loading…</td></tr>
           </tbody>
         </table>
       </div>

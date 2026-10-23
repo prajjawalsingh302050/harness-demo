@@ -8,10 +8,10 @@
 </head>
 <body>
   <header class="topbar">
-    <h1>Harness Demo Shop</h1>
+    <h1>Harness Demo</h1>
     <nav>
-      <a href="/">Orders</a>
-      <a href="/user.html?id=1">Customers</a>
+      <a href="/">People</a>
+      <a href="/person.html?id=1">Person</a>
       <a href="/health.html">Health</a>
       <a href="/architecture.html">How it works</a>
     </nav>
@@ -21,12 +21,12 @@
     <section class="card">
       <h2 style="margin-top:0">How this demo works</h2>
       <p>
-        This shop is deliberately unhealthy. A GitHub Action runs <b>sensors</b> against the code and the live
-        app, a <b>Gemini coding agent</b> fixes what fails and opens a <b>pull request</b>, a human merges it,
-        Vercel redeploys, and the sensors run again until every check is green.
+        A tiny app with one table of 10,000 people, deliberately unhealthy. A GitHub Action runs <b>sensors</b>
+        against the code and the live app, a <b>Gemini coding agent</b> fixes what fails and opens a
+        <b>pull request</b>, a human merges it, Vercel redeploys, and the sensors run again until every check is green.
       </p>
       <div class="flow">
-        <div class="step"><b>1. Sensors</b><span>GitHub Actions scans the code and load-tests the live app</span></div>
+        <div class="step"><b>1. Sensors</b><span>Scan the code and load-test the live app</span></div>
         <div class="arrow">→</div>
         <div class="step"><b>2. Health report</b><span>Each result is compared with budgets.json</span></div>
         <div class="arrow">→</div>
@@ -44,66 +44,34 @@
 
     <section class="card">
       <h2 style="margin-top:0">Live check</h2>
-      <p class="muted">Calls the real API on this deployment and shows the timing headers the sensors read.</p>
+      <p class="muted">Calls the real API on this deployment and shows the response time and DB query count.</p>
       <div class="toolbar">
-        <button class="primary" data-path="/api/health">GET /api/health</button>
-        <button data-path="/api/orders?page=1">GET /api/orders</button>
-        <button data-path="/api/users/1">GET /api/users/1</button>
-        <button data-path="/api/users/5000">GET /api/users/5000</button>
+        <button data-path="/api/people?limit=50">GET 50 people</button>
+        <button class="primary" data-path="/api/people?limit=5000">GET 5000 people</button>
+        <button data-path="/api/people/1">GET person 1</button>
+        <button data-path="/api/people/15000">GET person 15000</button>
+        <button data-path="/api/health">GET /api/health</button>
       </div>
       <div class="metrics" id="live-metrics"></div>
       <pre id="live-body" class="code muted">Click a button to call the API.</pre>
     </section>
 
     <section class="card">
-      <h2 style="margin-top:0">Frontend</h2>
+      <h2 style="margin-top:0">Setup</h2>
       <div class="table-wrap">
         <table>
-          <tr><th>Technology</th><td>Plain HTML, CSS and JavaScript. No framework, no build step.</td></tr>
-          <tr><th>Hosting</th><td>Static files in <code>public/</code>, served by Vercel's CDN</td></tr>
-          <tr><th>Pages</th><td>
-            <code>index.html</code> orders dashboard ·
-            <code>user.html</code> customer lookup ·
-            <code>health.html</code> latest health report and history ·
-            <code>architecture.html</code> this page
-          </td></tr>
-          <tr><th>Scripts</th><td>
-            <code>js/api.js</code> fetch helper that reads <code>X-DB-Queries</code> and timing ·
-            <code>js/app.js</code> orders table and paging ·
-            <code>js/user.js</code> customer lookup ·
-            <code>js/health.js</code> reads reports from the <code>health-reports</code> branch via the GitHub API ·
-            <code>js/config.js</code> repository settings
-          </td></tr>
-          <tr><th>Styling</th><td><code>css/style.css</code>, light and dark mode via <code>prefers-color-scheme</code></td></tr>
-        </table>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2 style="margin-top:0">Backend</h2>
-      <div class="table-wrap">
-        <table>
-          <tr><th>Technology</th><td>FastAPI (Python 3.12)</td></tr>
-          <tr><th>Hosting</th><td>One Vercel Python function (FastAPI preset), entry point <code>api/index.py</code> → <code>app/main.py</code> (<code>create_app()</code>)</td></tr>
-          <tr><th>Layers</th><td>
-            <code>api/routes/</code> HTTP only →
-            <code>services/registry.py</code> service registry →
-            <code>services/</code> business logic →
-            <code>repositories/</code> SQL →
-            <code>db/</code> SQLite
-          </td></tr>
-          <tr><th>Registries</th><td>
-            <code>api/router.py</code> router registry (every route module, mounted under <code>/api</code>) ·
-            <code>services/registry.py</code> service registry (one per request, via <code>Depends(get_services)</code>)
-          </td></tr>
-          <tr><th>Contract</th><td><code>schemas/</code> Pydantic response models · config in <code>core/config.py</code> · Swagger UI at <code>/api/docs</code></td></tr>
-          <tr><th>Database</th><td>SQLite file <code>data/shop.db</code> (2,000 users, 20,000 orders, 160,000 order items), opened read-only. Built from <code>migrations/*.sql</code> by <code>scripts/build_db.py</code>.</td></tr>
+          <tr><th>Frontend</th><td>Plain HTML, CSS and JavaScript in <code>public/</code>, served by Vercel's CDN.
+            Pages: <code>index.html</code> people list · <code>person.html</code> lookup by ID ·
+            <code>health.html</code> health report · <code>architecture.html</code> this page</td></tr>
+          <tr><th>Backend</th><td>FastAPI on one Vercel Python function. <code>api/index.py</code> creates the app and the timing middleware,
+            <code>app/routes.py</code> has the endpoints, <code>app/db.py</code> runs every SQL query.</td></tr>
+          <tr><th>Database</th><td>SQLite file <code>data/shop.db</code>, read-only: one table <code>people</code> (id, name, email, city), 10,000 rows.</td></tr>
           <tr><th>Endpoints</th><td>
-            <code>GET /api/orders?page=N</code> 50 orders with customer and total ·
-            <code>GET /api/users/{id}</code> one customer and order count ·
+            <code>GET /api/people?limit=N</code> up to 5000 people ·
+            <code>GET /api/people/{id}</code> one person ·
             <code>GET /api/health</code> liveness
           </td></tr>
-          <tr><th>Observability</th><td>Middleware adds <code>Server-Timing: db;dur, app;dur</code> and <code>X-DB-Queries</code> to every response. Queries slower than 5 ms are logged as <code>slow query</code>.</td></tr>
+          <tr><th>Observability</th><td>Every response carries <code>X-DB-Queries</code> and <code>Server-Timing</code>. Queries slower than 5 ms are logged.</td></tr>
         </table>
       </div>
     </section>
@@ -115,12 +83,12 @@
           <thead><tr><th>Area</th><th>Check</th><th>Tool</th><th>Kind</th></tr></thead>
           <tbody>
             <tr><td>Codebase (drift detection)</td><td>Dead code</td><td>vulture + unreferenced JS scan</td><td><span class="kind inferential">INFERENTIAL</span></td></tr>
-            <tr><td>Runtime (feedback)</td><td>p95 latency <code>/api/orders</code></td><td>load test (evidence: X-DB-Queries, EXPLAIN QUERY PLAN)</td><td><span class="kind computational">COMPUTATIONAL</span></td></tr>
+            <tr><td>Codebase (drift detection)</td><td>Unused libraries</td><td>requirements.txt vs imports</td><td><span class="kind computational">COMPUTATIONAL</span></td></tr>
+            <tr><td>Runtime (feedback)</td><td>p95 latency of "Load 5000 people"</td><td>load test</td><td><span class="kind computational">COMPUTATIONAL</span></td></tr>
             <tr><td>Runtime (feedback)</td><td>Error rate (HTTP 5xx)</td><td>load test</td><td><span class="kind computational">COMPUTATIONAL</span></td></tr>
           </tbody>
         </table>
       </div>
-      <p class="muted">Computational checks are deterministic tools. Inferential checks need judgement, so the agent confirms them before changing code.</p>
     </section>
 
     <section class="card">
@@ -129,10 +97,10 @@
         <table>
           <thead><tr><th>Problem</th><th>Where</th><th>Expected fix</th></tr></thead>
           <tbody>
-            <tr><td>Unused import and JS file</td><td><code>api/routes/orders.py</code>, <code>legacy-charts.js</code></td><td>Delete</td></tr>
-            <tr><td>N+1 queries (101 per page)</td><td><code>services/orders.py</code></td><td>One JOIN query in the repository</td></tr>
-            <tr><td>Missing index on <code>order_items.order_id</code></td><td><code>migrations/001_init.sql</code></td><td>New migration with an index</td></tr>
-            <tr><td>HTTP 500 for a missing customer</td><td><code>services/users.py</code></td><td>Return 404</td></tr>
+            <tr><td>Unused import, unused function, unused JS file</td><td><code>app/routes.py</code>, <code>legacy-charts.js</code></td><td>Delete</td></tr>
+            <tr><td>Libraries nothing imports (<code>requests</code>, <code>python-dateutil</code>)</td><td><code>requirements.txt</code></td><td>Remove</td></tr>
+            <tr><td>"Load 5000 people" runs 5,001 queries, each scanning the table by email</td><td><code>app/routes.py</code></td><td>One query</td></tr>
+            <tr><td>HTTP 500 for a missing person</td><td><code>app/routes.py</code></td><td>Return 404</td></tr>
           </tbody>
         </table>
       </div>
