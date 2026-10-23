@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How It Works</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Harness Demo Shop</h1>
+    <nav>
+      <a href="/">Orders</a>
+      <a href="/user.html?id=1">Customers</a>
+      <a href="/health.html">Health</a>
+      <a href="/architecture.html">How it works</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2 style="margin-top:0">How this demo works</h2>
+      <p>
+        This shop is deliberately unhealthy. A GitHub Action runs <b>sensors</b> against the code and the live
+        app, a <b>Gemini coding agent</b> fixes what fails and opens a <b>pull request</b>, a human merges it,
+        Vercel redeploys, and the sensors run again until every check is green.
+      </p>
+      <div class="flow">
+        <div class="step"><b>1. Sensors</b><span>GitHub Actions scans the code and load-tests the live app</span></div>
+        <div class="arrow">→</div>
+        <div class="step"><b>2. Health report</b><span>Each result is compared with budgets.json</span></div>
+        <div class="arrow">→</div>
+        <div class="step"><b>3. Coding agent</b><span>Gemini edits the code; tests must pass</span></div>
+        <div class="arrow">→</div>
+        <div class="step"><b>4. Pull request</b><span>A human reviews and merges</span></div>
+        <div class="arrow">→</div>
+        <div class="step"><b>5. Deploy</b><span>Vercel ships it; the loop runs again</span></div>
+      </div>
+      <p class="muted">
+        Source: <a id="repo-link" href="#">GitHub repository</a> ·
+        Latest results: <a href="/health.html">Health report</a>
+      </p>
+    </section>
+
+    <section class="card">
+      <h2 style="margin-top:0">Live check</h2>
+      <p class="muted">Calls the real API on this deployment and shows the timing headers the sensors read.</p>
+      <div class="toolbar">
+        <button class="primary" data-path="/api/health">GET /api/health</button>
+        <button data-path="/api/orders?page=1">GET /api/orders</button>
+        <button data-path="/api/users/1">GET /api/users/1</button>
+        <button data-path="/api/users/5000">GET /api/users/5000</button>
+      </div>
+      <div class="metrics" id="live-metrics"></div>
+      <pre id="live-body" class="code muted">Click a button to call the API.</pre>
+    </section>
+
+    <section class="card">
+      <h2 style="margin-top:0">Frontend</h2>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Technology</th><td>Plain HTML, CSS and JavaScript. No framework, no build step.</td></tr>
+          <tr><th>Hosting</th><td>Static files in <code>public/</code>, served by Vercel's CDN</td></tr>
+          <tr><th>Pages</th><td>
+            <code>index.html</code> orders dashboard ·
+            <code>user.html</code> customer lookup ·
+            <code>health.html</code> latest health report and history ·
+            <code>architecture.html</code> this page
+          </td></tr>
+          <tr><th>Scripts</th><td>
+            <code>js/api.js</code> fetch helper that reads <code>X-DB-Queries</code> and timing ·
+            <code>js/app.js</code> orders table and paging ·
+            <code>js/user.js</code> customer lookup ·
+            <code>js/health.js</code> reads reports from the <code>health-reports</code> branch via the GitHub API ·
+            <code>js/config.js</code> repository settings
+          </td></tr>
+          <tr><th>Styling</th><td><code>css/style.css</code>, light and dark mode via <code>prefers-color-scheme</code></td></tr>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 style="margin-top:0">Backend</h2>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Technology</th><td>FastAPI (Python 3.12)</td></tr>
+          <tr><th>Hosting</th><td>One Vercel Python function (FastAPI preset), entry point <code>api/index.py</code></td></tr>
+          <tr><th>Database</th><td>SQLite file <code>data/shop.db</code> (2,000 users, 20,000 orders, 160,000 order items), opened read-only. Built from <code>migrations/*.sql</code> by <code>scripts/build_db.py</code>.</td></tr>
+          <tr><th>Endpoints</th><td>
+            <code>GET /api/orders?page=N</code> 50 orders with customer and total ·
+            <code>GET /api/users/{id}</code> one customer and order count ·
+            <code>GET /api/health</code> liveness
+          </td></tr>
+          <tr><th>Observability</th><td>Middleware adds <code>Server-Timing: db;dur, app;dur</code> and <code>X-DB-Queries</code> to every response. Queries slower than 5 ms are logged as <code>slow query</code>.</td></tr>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 style="margin-top:0">Sensors</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Area</th><th>Check</th><th>Tool</th><th>Kind</th></tr></thead>
+          <tbody>
+            <tr><td>Codebase</td><td>Vulnerable dependencies</td><td>pip-audit</td><td><span class="kind computational">COMPUTATIONAL</span></td></tr>
+            <tr><td>Codebase</td><td>Dead code</td><td>vulture + unreferenced JS scan</td><td><span class="kind inferential">INFERENTIAL</span></td></tr>
+            <tr><td>Codebase</td><td>Test quality</td><td>AST check + coverage</td><td><span class="kind inferential">INFERENTIAL</span></td></tr>
+            <tr><td>Runtime</td><td>p95 latency</td><td>load test</td><td><span class="kind computational">COMPUTATIONAL</span></td></tr>
+            <tr><td>Runtime</td><td>DB queries per request (N+1)</td><td>X-DB-Queries header</td><td><span class="kind computational">COMPUTATIONAL</span></td></tr>
+            <tr><td>Runtime</td><td>Error rate and availability</td><td>load test</td><td><span class="kind computational">COMPUTATIONAL</span></td></tr>
+            <tr><td>Runtime</td><td>Slow queries with full scans</td><td>slow-query log + EXPLAIN QUERY PLAN</td><td><span class="kind computational">COMPUTATIONAL</span></td></tr>
+            <tr><td>Runtime</td><td>Repeated log warnings</td><td>log aggregation</td><td><span class="kind inferential">INFERENTIAL</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="muted">Computational checks are deterministic tools. Inferential checks need judgement, so the agent confirms them before changing code.</p>
+    </section>
+
+    <section class="card">
+      <h2 style="margin-top:0">Planted problems</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Problem</th><th>Where</th><th>Expected fix</th></tr></thead>
+          <tbody>
+            <tr><td>Old packages with known CVEs</td><td><code>requirements.txt</code></td><td>Upgrade or remove</td></tr>
+            <tr><td>Unused module, function, import and JS file</td><td><code>legacy_discount.py</code>, <code>pricing.py</code>, <code>orders.py</code>, <code>legacy-charts.js</code></td><td>Delete</td></tr>
+            <tr><td>Tests that only check “not None”</td><td><code>tests/test_api.py</code></td><td>Assert status codes and values</td></tr>
+            <tr><td>N+1 queries (101 per page)</td><td><code>app/routes/orders.py</code></td><td>One JOIN query</td></tr>
+            <tr><td>Missing index on <code>order_items.order_id</code></td><td><code>migrations/001_init.sql</code></td><td>New migration with an index</td></tr>
+            <tr><td>HTTP 500 for a missing customer</td><td><code>app/routes/users.py</code></td><td>Return 404</td></tr>
+            <tr><td>Warning logged on most orders</td><td><code>app/services/pricing.py</code></td><td>Add the missing tax mappings</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/architecture.js"></script>
+</body>
+</html>

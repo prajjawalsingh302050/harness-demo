@@ -123,6 +123,35 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .kind.computational { color: var(--computational); }
 .kind.inferential { color: var(--inferential); }
 
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+
+.code {
+  margin: 12px 0 0;
+  padding: 14px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  max-height: 320px;
+  overflow: auto;
+  font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin: 16px 0; }
+.flow .step {
+  flex: 1 1 150px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+}
+.flow .step span { color: var(--muted); font-size: 14px; }
+.flow .arrow { align-self: center; color: var(--muted); font-weight: 700; }
+
 .history { display: flex; flex-wrap: wrap; gap: 6px; }
 .history span { width: 18px; height: 18px; border-radius: 4px; display: inline-block; }
 .history .ok { background: var(--good); }
@@ -130,5 +159,6 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 
 @media (max-width: 640px) {
   .topbar { flex-direction: column; align-items: flex-start; }
+  .flow .arrow { display: none; }
   .topbar nav a { margin: 0 16px 0 0; }
 }
