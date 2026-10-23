@@ -61,7 +61,7 @@ These define what "healthy" means and how the agent behaves. Changing them chang
 |---|---|
 | `budgets.json` | Pass/fail thresholds |
 | `scripts/build_report.py` | Check logic (dead code, unused libraries, latency, error rate) and report format |
-| `scripts/collect_runtime.py` | Load-test mix (40% "Load 5000", 50% person lookups with 20% missing IDs) |
+| `scripts/collect_runtime.py` | Load test: 2 workers on "Load 5000", 3 on person lookups (every 5th ID missing) + health |
 | `scripts/run_sensors.sh` | Sensor order, vulture flags |
 | `scripts/agent.py` | Agent rules, allowed paths (`EDITABLE`, `PROTECTED`), verification |
 | `.github/workflows/health-check.yml` | The loop in CI |

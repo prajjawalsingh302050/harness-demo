@@ -73,8 +73,10 @@ The fix is one query: `SELECT id, name, email, city FROM people ORDER BY id LIMI
 
 ### Load test (`collect_runtime.py`)
 
-- `asyncio` + `httpx`, 4 concurrent workers, 15–20 seconds, fixed seeds.
-- Mix: 40% `/api/people?limit=5000`, 50% `/api/people/{id}` (20% of those IDs don't exist), 10% `/api/health`.
+- `asyncio` + `httpx`, 15–20 seconds, fixed seeds, 5 concurrent workers:
+  - 2 **heavy** workers keep requesting `/api/people?limit=5000` (the "Load 5000 people" button).
+  - 3 **light** workers request `/api/people/{id}` (every 5th lookup uses an ID that doesn't exist) and `/api/health` (15%).
+  Keeping them separate means slow heavy requests can't starve the lookups, so the error rate is reliable even when "Load 5000" takes 10+ seconds.
 - Three warm-up requests first. A dropped keep-alive connection is retried once (the server closes the connection after a 500).
 - Records latency, status, `X-DB-Queries` and `Server-Timing db`, then summarises p50/p95, average queries and 5xx per endpoint.
 
