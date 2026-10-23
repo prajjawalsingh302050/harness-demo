@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run the sensors (dead code, latency, error rate) and build reports/health-report.{json,md}.
+# Run the sensors (dead code, unused libraries, latency, error rate) and build reports/health-report.{json,md}.
 #   bash scripts/run_sensors.sh                 # local only
 #   APP_URL=https://... bash scripts/run_sensors.sh   # also measure the live deployment
 set -uo pipefail
@@ -11,7 +11,7 @@ mkdir -p reports
 rm -f reports/*.json reports/*.txt reports/*.log reports/*.md
 
 echo "== Drift sensor: dead code"
-"$PY" -m vulture app api --min-confidence 60 --ignore-decorators "@router.*,@app.*" --ignore-names "row_factory" --exclude "*/schemas/*" > reports/vulture.txt 2>/dev/null || true
+"$PY" -m vulture app api --min-confidence 60 --ignore-decorators "@router.*,@app.*" --ignore-names "row_factory" > reports/vulture.txt 2>/dev/null || true
 
 echo "== Runtime sensors (local)"
 "$PY" -m uvicorn api.index:app --port "$PORT" --log-level warning > reports/app.log 2>&1 &

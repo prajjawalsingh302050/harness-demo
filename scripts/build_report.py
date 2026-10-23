@@ -1,10 +1,12 @@
 """Combine the sensor outputs into reports/health-report.json and reports/health-report.md.
 
-Three checks: dead code (continuous drift detection), p95 latency and error rate (continuous runtime feedback).
+Four checks: dead code and unused libraries (continuous drift detection),
+p95 latency and error rate (continuous runtime feedback).
 Each check has:
   kind  computational (deterministic tool) or inferential (needs judgement; the agent confirms)
   area  codebase (continuous drift detection) or runtime (continuous runtime feedback)
 """
+import ast
 import json
 import os
 import re
@@ -57,6 +59,37 @@ def dead_code():
     )
 
 
+# Package names whose import name differs from the name in requirements.txt.
+IMPORT_NAMES = {"python-dateutil": "dateutil", "pyyaml": "yaml", "beautifulsoup4": "bs4", "pillow": "PIL",
+                "scikit-learn": "sklearn", "python-dotenv": "dotenv"}
+
+
+def unused_dependencies():
+    """Packages in requirements.txt that no file in app/ or api/ imports."""
+    imported = set()
+    for path in [*(ROOT / "app").rglob("*.py"), *(ROOT / "api").rglob("*.py")]:
+        for node in ast.walk(ast.parse(path.read_text())):
+            if isinstance(node, ast.Import):
+                imported |= {alias.name.split(".")[0] for alias in node.names}
+            elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+                imported.add(node.module.split(".")[0])
+
+    details = []
+    for line in (ROOT / "requirements.txt").read_text().splitlines():
+        package = re.split(r"[<>=!~\[;\s]", line.strip(), maxsplit=1)[0]
+        if not package or package.startswith("#"):
+            continue
+        module = IMPORT_NAMES.get(package.lower(), package.lower().replace("-", "_"))
+        if module not in imported:
+            details.append(f"{line.strip()}: listed in requirements.txt but never imported in app/ or api/")
+    return check(
+        "unused_dependencies", "Unused libraries in requirements.txt", "computational", "codebase",
+        len(details), BUDGETS["unused_dependencies"], len(details) <= BUDGETS["unused_dependencies"],
+        details, ["requirements.txt"],
+        "Remove each library the code never imports. Vercel installs everything in requirements.txt.",
+    )
+
+
 # ---------- runtime sensors ----------
 
 def runtime_source():
@@ -67,7 +100,7 @@ def runtime_source():
 def _is_full_table_scan(plan_line, sql, tables):
     """A plan line like 'SCAN order_items' on a real table, with no index. Aliases are resolved."""
     match = re.match(r"SCAN (\w+)", plan_line)
-    if not match or "INDEX" in plan_line:
+    if not match or "INDEX" in plan_line or not re.search(r"\bWHERE\b", sql, re.IGNORECASE):
         return False
     aliases = {}
     for table, alias in re.findall(r"\b(?:FROM|JOIN)\s+(\w+)(?:\s+(?:AS\s+)?(\w+))?", sql, re.IGNORECASE):
@@ -102,39 +135,38 @@ def slow_query_details():
 
 
 def latency(runtime, source):
-    stats = runtime["by_endpoint"]["orders"]
-    budget = BUDGETS["orders_p95_ms"]
+    stats = runtime["by_endpoint"]["people"]
+    budget = BUDGETS["people_p95_ms"]
     details = [
         f"p50 {stats['p50_ms']} ms, p95 {stats['p95_ms']} ms, DB time p95 {stats['db_p95_ms']} ms over {stats['requests']} requests",
-        f"Each page of 50 orders runs {stats['avg_db_queries']} DB queries on average (X-DB-Queries header)",
+        f"Loading 5000 people runs {stats['avg_db_queries']} DB queries on average (X-DB-Queries header)",
     ]
     return check(
-        "latency_orders", f"p95 latency /api/orders [{source}]", "computational", "runtime",
+        "latency_people", f"p95 latency /api/people?limit=5000 [{source}]", "computational", "runtime",
         f"{stats['p95_ms']:.0f} ms", f"{budget} ms", stats["p95_ms"] <= budget,
-        details + slow_query_details(), ["app/services/orders.py", "app/repositories/orders.py", "migrations/"],
-        "Find where the time goes. If one request runs a query per order (N+1), add a repository method that fetches "
-        "the page with one query that JOINs users and aggregates order_items, and use it from the service. Keep the "
-        "response shape identical. If a slow "
-        "query does a full table scan, add a NEW migration (e.g. migrations/002_add_indexes.sql) with CREATE INDEX. "
-        "Never edit 001_init.sql.",
+        details + slow_query_details(), ["app/routes.py"],
+        "Find where the time goes. If the endpoint runs one query per person (N+1), fetch the whole list with one "
+        "SELECT ... ORDER BY id LIMIT ? and keep the response shape {count, people: [{id, name, email, city}]}. "
+        "Delete helpers that become unused. If you need an index, add a NEW migration (e.g. migrations/002_*.sql); "
+        "never edit 001_init.sql.",
     )
 
 
 def error_rate(runtime, source):
     rate = runtime["error_rate_pct"]
-    users = runtime["by_endpoint"]["users"]
+    person = runtime["by_endpoint"]["person"]
     return check(
         "error_rate", f"Error rate (HTTP 5xx) [{source}]", "computational", "runtime",
         f"{rate}%", f"{BUDGETS['error_rate_pct']}%", rate <= BUDGETS["error_rate_pct"],
-        [f"/api/users/{{id}} returned {users['errors_5xx']} server errors out of {users['requests']} requests (lookups of customer IDs that do not exist)"] if users["errors_5xx"] else [],
-        ["app/services/users.py", "app/api/routes/users.py"],
-        "Return HTTP 404 with a clear message when the customer does not exist instead of crashing.",
+        [f"/api/people/{{id}} returned {person['errors_5xx']} server errors out of {person['requests']} requests (lookups of person IDs that do not exist)"] if person["errors_5xx"] else [],
+        ["app/routes.py"],
+        "Return HTTP 404 with a clear message when the person does not exist instead of crashing.",
     )
 
 
 def main():
     runtime, source = runtime_source()
-    checks = [dead_code()]
+    checks = [dead_code(), unused_dependencies()]
     if runtime:
         checks += [latency(runtime, source), error_rate(runtime, source)]
 

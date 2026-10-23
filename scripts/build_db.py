@@ -8,15 +8,12 @@ Check that the committed database matches the migrations (used by CI):
 import random
 import sqlite3
 import sys
-from datetime import datetime, timedelta
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 DB = ROOT / "data" / "shop.db"
 
-N_USERS = 2_000
-N_ORDERS = 20_000
-ITEMS_PER_ORDER = (4, 12)
+N_PEOPLE = 10_000
 
 FIRST = ["Aarav", "Vivaan", "Aditya", "Ishaan", "Kabir", "Ananya", "Diya", "Saanvi", "Myra", "Aisha",
          "Rohan", "Arjun", "Meera", "Kavya", "Nikhil", "Priya", "Rahul", "Sneha", "Vikram", "Zara"]
@@ -24,17 +21,13 @@ LAST = ["Sharma", "Verma", "Singh", "Gupta", "Iyer", "Reddy", "Nair", "Das", "Me
         "Joshi", "Patel", "Rao", "Bose", "Khan", "Malhotra", "Chopra", "Menon", "Pillai", "Saxena"]
 CITIES = ["Delhi", "Mumbai", "Bengaluru", "Chennai", "Kolkata", "Hyderabad", "Pune", "Jaipur",
           "Lucknow", "Kochi", "Indore", "Bhopal", "Surat", "Nagpur", "Patna", "Guwahati"]
-PRODUCTS = [("Keyboard", 1499.0), ("Mouse", 699.0), ("Monitor", 12999.0), ("USB-C Hub", 1999.0),
-            ("Headphones", 3499.0), ("Webcam", 2799.0), ("Laptop Stand", 1299.0), ("SSD 1TB", 6499.0),
-            ("Desk Lamp", 999.0), ("Router", 3999.0), ("Microphone", 4599.0), ("Cable Pack", 499.0)]
-STATUSES = ["delivered", "delivered", "delivered", "shipped", "processing", "cancelled"]
 
 
 def fingerprint(path):
     """Schema plus row counts. Bytes differ between SQLite versions, so compare this instead."""
     con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
     schema = sorted(r[0] for r in con.execute("SELECT sql FROM sqlite_master WHERE sql IS NOT NULL"))
-    counts = {t: con.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in ("users", "orders", "order_items")}
+    counts = {t: con.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in ("people",)}
     con.close()
     return schema, counts
 
@@ -62,27 +55,16 @@ def build(tmp):
         con.executescript(migration.read_text())
 
     rnd = random.Random(42)
-    users = []
-    for uid in range(1, N_USERS + 1):
+    people = []
+    for pid in range(1, N_PEOPLE + 1):
         first, last = rnd.choice(FIRST), rnd.choice(LAST)
-        users.append((uid, f"{first} {last}", f"{first}.{last}{uid}@example.com".lower(), rnd.choice(CITIES)))
-    con.executemany("INSERT INTO users (id, name, email, city) VALUES (?, ?, ?, ?)", users)
-
-    start = datetime(2026, 1, 1)
-    orders, items = [], []
-    for oid in range(1, N_ORDERS + 1):
-        created = start + timedelta(minutes=rnd.randint(0, 60 * 24 * 290))
-        orders.append((oid, rnd.randint(1, N_USERS), created.strftime("%Y-%m-%d %H:%M:%S"), rnd.choice(STATUSES)))
-        for _ in range(rnd.randint(*ITEMS_PER_ORDER)):
-            product, price = rnd.choice(PRODUCTS)
-            items.append((oid, product, rnd.randint(1, 3), price))
-    con.executemany("INSERT INTO orders (id, user_id, created_at, status) VALUES (?, ?, ?, ?)", orders)
-    con.executemany("INSERT INTO order_items (order_id, product, qty, unit_price) VALUES (?, ?, ?, ?)", items)
+        people.append((pid, f"{first} {last}", f"{first}.{last}{pid}@example.com".lower(), rnd.choice(CITIES)))
+    con.executemany("INSERT INTO people (id, name, email, city) VALUES (?, ?, ?, ?)", people)
 
     con.commit()
     con.execute("VACUUM")
     con.close()
-    print(f"Built {DB.relative_to(ROOT)}: {N_USERS} users, {N_ORDERS} orders, {len(items)} order items")
+    print(f"Built {DB.relative_to(ROOT)}: {N_PEOPLE} people")
 
 
 if __name__ == "__main__":

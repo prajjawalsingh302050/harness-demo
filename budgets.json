@@ -1,5 +1,6 @@
 {
   "dead_code_items": 0,
-  "orders_p95_ms": 500,
+  "unused_dependencies": 0,
+  "people_p95_ms": 1000,
   "error_rate_pct": 1
 }
