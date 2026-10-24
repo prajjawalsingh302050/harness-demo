@@ -3,9 +3,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# What gets restored, and a unique branch for the reset PR.
 PATHS="app api tests migrations public requirements.txt data"
 BRANCH="demo/reset-$(date +%Y%m%d-%H%M%S)"
 
+# Start from the latest main.
 git fetch -q origin main --tags
 git checkout -q -b "$BRANCH" origin/main
 
@@ -13,12 +15,14 @@ git checkout -q -b "$BRANCH" origin/main
 for f in $(git diff --name-only --diff-filter=A demo-start HEAD -- $PATHS); do git rm -q "$f"; done
 git checkout demo-start -- $PATHS
 
+# Nothing changed: already planted.
 if git diff --cached --quiet; then
   echo "Already in the demo-start state. Nothing to reset."
   git checkout -q main && git branch -q -D "$BRANCH"
   exit 0
 fi
 
+# Commit, push and open the PR for you to merge.
 git commit -qm "Reset demo: re-plant drift and runtime problems"
 git push -q origin "$BRANCH"
 gh pr create --base main --head "$BRANCH" --title "Reset demo to planted state" \

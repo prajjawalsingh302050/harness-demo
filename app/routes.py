@@ -1,16 +1,20 @@
+"""The API endpoints: list people, look up one person, and a health check."""
 import json
 
 from fastapi import APIRouter
 
 from app.db import connect, query
 
+# Every path below is served under /api.
 router = APIRouter(prefix="/api")
 
+# The most people one request may ask for.
 MAX_LIMIT = 5000
 
 
 @router.get("/people")
 def list_people(limit: int = 50):
+    """Return up to `limit` people (clamped to 1..5000), ordered by id, as {count, people}."""
     limit = min(max(limit, 1), MAX_LIMIT)
     con = connect()
     try:
@@ -22,12 +26,14 @@ def list_people(limit: int = 50):
 
 
 def find_by_email(con, email):
+    """Return the person with this email, or None if there is none."""
     rows = query(con, "SELECT id, name, email, city FROM people WHERE email = ?", (email,))
     return rows[0] if rows else None
 
 
 @router.get("/people/{person_id}")
 def get_person(person_id: int):
+    """Return one person by id as {id, name, email, city}."""
     con = connect()
     try:
         rows = query(con, "SELECT id, name, email, city FROM people WHERE id = ?", (person_id,))
@@ -39,6 +45,7 @@ def get_person(person_id: int):
 
 @router.get("/health")
 def health():
+    """Liveness check: the app is running and the database answers."""
     con = connect()
     try:
         query(con, "SELECT 1")

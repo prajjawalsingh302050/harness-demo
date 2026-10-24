@@ -1,3 +1,4 @@
+# Tools for local runs, tests and sensors only (not deployed).
 uvicorn
 httpx
 pytest

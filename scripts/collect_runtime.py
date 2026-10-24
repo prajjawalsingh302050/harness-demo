@@ -12,6 +12,7 @@ from pathlib import Path
 
 import httpx
 
+# Valid person ids are 1..N_PEOPLE; lookups above it hit missing people.
 N_PEOPLE = 10_000
 
 
@@ -20,11 +21,13 @@ LIGHT_WORKERS = 3  # person lookups and health checks, so slow heavy requests ca
 
 
 def heavy_requests(rnd):
+    """Endless "Load 5000 people" requests (feeds the latency check)."""
     while True:
         yield "people", "/api/people?limit=5000"
 
 
 def light_requests(rnd):
+    """Endless person lookups (every 5th id missing) and some health checks (feeds the error-rate check)."""
     lookups = 0
     while True:
         if rnd.random() < 0.15:
@@ -37,6 +40,7 @@ def light_requests(rnd):
 
 
 def percentile(values, pct):
+    """Return the value at the given percentile, e.g. 95 for p95."""
     if not values:
         return 0.0
     values = sorted(values)
@@ -45,6 +49,7 @@ def percentile(values, pct):
 
 
 async def worker(client, deadline, samples, requests):
+    """One simulated user: send requests until the deadline and record time, status and DB stats."""
     while time.monotonic() < deadline:
         name, path = next(requests)
         started = time.perf_counter()
@@ -71,6 +76,7 @@ async def worker(client, deadline, samples, requests):
 
 
 async def run(base_url, duration, seed):
+    """Warm the target up, then run all workers at once for `duration` seconds; return the samples."""
     samples = []
     async with httpx.AsyncClient(base_url=base_url, timeout=60, follow_redirects=True) as client:
         for _ in range(3):  # warm-up so cold starts do not skew the numbers
@@ -86,6 +92,7 @@ async def run(base_url, duration, seed):
 
 
 def summarise(samples, base_url, duration):
+    """Turn raw samples into per-endpoint p50/p95, query counts and 5xx counts, plus the error rate."""
     by_endpoint = {}
     for name in ("people", "person", "health"):
         rows = [s for s in samples if s["endpoint"] == name]
@@ -111,6 +118,7 @@ def summarise(samples, base_url, duration):
 
 
 def main():
+    """Parse the command line, run the load test, save the summary JSON and print one line."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-url", required=True)
     parser.add_argument("--duration", type=int, default=20)

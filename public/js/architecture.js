@@ -1,3 +1,4 @@
+// How it works page: buttons that call the live API and show the pills and the JSON reply.
 const liveMetrics = document.getElementById("live-metrics");
 const liveBody = document.getElementById("live-body");
 

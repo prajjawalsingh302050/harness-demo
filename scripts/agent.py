@@ -15,14 +15,20 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 REPORTS = ROOT / "reports"
+# Base URL of the Gemini REST API.
 API = "https://generativelanguage.googleapis.com/v1beta"
 
+# Files sent to Gemini as context (each under 60 KB).
 CONTEXT_GLOBS = ["requirements.txt", "migrations/*.sql", "app/**/*.py", "api/*.py",
                  "tests/*.py", "public/*.html", "public/js/*.js"]
+# The only places the agent may write. Anything else is rejected by safe_path().
 EDITABLE = ("app/", "api/", "tests/", "migrations/", "public/", "requirements.txt")
+# Never edited, even though it is under an editable folder.
 PROTECTED = {"migrations/001_init.sql"}
+# First try plus one retry with the test failure as feedback.
 MAX_ATTEMPTS = 2
 
+# System instruction sent with every request.
 RULES = """You are the coding agent inside a software harness. Sensors produced a health report.
 Make every failing check pass with the smallest correct changes.
 
@@ -48,6 +54,7 @@ Rules:
 - pr_body: Markdown. One section per failing check: what the sensor found -> what you changed -> why it fixes it.
 """
 
+# The exact JSON shape Gemini must answer in.
 SCHEMA = {
     "type": "OBJECT",
     "properties": {
@@ -72,6 +79,7 @@ SCHEMA = {
 
 
 def load_env():
+    """Load KEY=value lines from .env without overriding variables that are already set."""
     env = ROOT / ".env"
     if not env.exists():
         return
@@ -83,6 +91,7 @@ def load_env():
 
 
 def request(url, key, payload=None):
+    """Call the Gemini API (POST with a payload, GET without) and return the JSON reply."""
     data = json.dumps(payload).encode() if payload is not None else None
     req = urllib.request.Request(url, data=data, method="POST" if data else "GET",
                                  headers={"x-goog-api-key": key, "Content-Type": "application/json"})
@@ -94,6 +103,7 @@ def request(url, key, payload=None):
 
 
 def pick_model(key):
+    """Use GEMINI_MODEL if set, otherwise the newest stable "flash" model for this key."""
     if os.environ.get("GEMINI_MODEL"):
         return os.environ["GEMINI_MODEL"]
     models = request(f"{API}/models?pageSize=200", key).get("models", [])
@@ -114,6 +124,7 @@ def pick_model(key):
 
 
 def repo_files():
+    """Read every file matching CONTEXT_GLOBS into {relative path: text}."""
     files = {}
     for pattern in CONTEXT_GLOBS:
         for path in sorted(ROOT.glob(pattern)):
@@ -123,6 +134,7 @@ def repo_files():
 
 
 def build_prompt(report_md, files, feedback):
+    """Join the health report, every source file and, on a retry, the previous failure into one message."""
     parts = ["# Health report\n", report_md, "\n# Repository files\n"]
     for path, content in files.items():
         parts.append(f"\n--- FILE: {path} ---\n{content}")
@@ -133,6 +145,7 @@ def build_prompt(report_md, files, feedback):
 
 
 def call_gemini(key, model, prompt):
+    """Ask Gemini for a fix and return its answer as a dict matching SCHEMA."""
     payload = {
         "systemInstruction": {"parts": [{"text": RULES}]},
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
@@ -147,6 +160,7 @@ def call_gemini(key, model, prompt):
 
 
 def safe_path(raw):
+    """Return the path if the agent may write it, else None (blocks .., absolute, protected and other paths)."""
     path = raw.strip().lstrip("./")
     if not path or ".." in Path(path).parts or path.startswith("/"):
         return None
@@ -156,6 +170,7 @@ def safe_path(raw):
 
 
 def apply_changes(changes, backup):
+    """Write or delete each allowed file, saving originals in `backup`; return (applied, rejected)."""
     applied, rejected = [], []
     for change in changes:
         path = safe_path(change.get("path", ""))
@@ -174,6 +189,7 @@ def apply_changes(changes, backup):
 
 
 def restore(backup):
+    """Put every backed-up file back, deleting files that did not exist before."""
     for path, content in backup.items():
         target = ROOT / path
         if content is None:
@@ -184,6 +200,7 @@ def restore(backup):
 
 
 def verify():
+    """Rebuild the database and run the tests; return (passed, error output)."""
     steps = [[sys.executable, "scripts/build_db.py"], [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider"]]
     for cmd in steps:
         result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
@@ -193,6 +210,7 @@ def verify():
 
 
 def main():
+    """Read the report, ask Gemini, apply, verify, and on success write the PR text. Returns the exit code."""
     load_env()
     key = os.environ.get("GEMINI_API_KEY")
     if not key:
@@ -236,6 +254,7 @@ def main():
 
 
 def write_pr(answer, applied, model, report_md):
+    """Write reports/pr-title.txt and reports/pr-body.md for the workflow to open the pull request."""
     changed = "\n".join(f"- `{path}` ({action}): {reason}" for action, path, reason in applied)
     body = (
         f"{answer['pr_body'].strip()}\n\n"

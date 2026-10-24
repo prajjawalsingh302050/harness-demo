@@ -1,3 +1,4 @@
+/* Shared styles for every page. Colors are variables, redefined below for dark mode. */
 :root {
   --bg: #f6f7f9;
   --surface: #ffffff;
@@ -35,6 +36,7 @@
   }
 }
 
+/* Page layout: top bar, centered content, cards. */
 * { box-sizing: border-box; }
 
 body {
@@ -80,6 +82,7 @@ main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
 
 .metrics { display: flex; flex-wrap: wrap; gap: 8px; }
 
+/* Pills: the time / queries / status badges. */
 .pill {
   display: inline-block;
   padding: 4px 10px;
@@ -110,6 +113,7 @@ button:disabled { opacity: 0.5; cursor: default; }
 
 .table-wrap { overflow-x: auto; }
 
+/* Tables. */
 table { width: 100%; border-collapse: collapse; font-size: 14px; }
 th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); }
 th { color: var(--muted); font-weight: 600; font-size: 13px; }
@@ -152,11 +156,13 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1
 .flow .step span { color: var(--muted); font-size: 14px; }
 .flow .arrow { align-self: center; color: var(--muted); font-weight: 700; }
 
+/* Health page history: one square per run. */
 .history { display: flex; flex-wrap: wrap; gap: 6px; }
 .history span { width: 18px; height: 18px; border-radius: 4px; display: inline-block; }
 .history .ok { background: var(--good); }
 .history .fail { background: var(--bad); }
 
+/* Phone layout. */
 @media (max-width: 640px) {
   .topbar { flex-direction: column; align-items: flex-start; }
   .flow .arrow { display: none; }
