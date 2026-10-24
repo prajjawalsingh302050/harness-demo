@@ -193,7 +193,12 @@ def main():
     if os.environ.get("GITHUB_OUTPUT"):
         with open(os.environ["GITHUB_OUTPUT"], "a") as out:
             out.write(f"healthy={'true' if report['healthy'] else 'false'}\n")
+    for c in checks:
+        print(f"  {'PASS' if c['ok'] else 'FAIL'}  {c['name']}: {c['value']} (budget {c['budget']})")
+    if not runtime:
+        print("  (no load-test results found, so latency and error rate were not checked)")
     print(f"healthy={report['healthy']} failed={len(failed)}/{len(checks)}")
+    print("Wrote reports/health-report.json and reports/health-report.md")
 
 
 def to_markdown(report):
