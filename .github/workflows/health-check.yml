@@ -72,6 +72,7 @@ jobs:
 
       # Only when the agent's fix passed its tests.
       - name: Open pull request
+        id: pr
         if: steps.agent.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -99,3 +100,21 @@ jobs:
       - name: No API key
         if: steps.report.outputs.healthy == 'false' && env.GEMINI_API_KEY == ''
         run: echo "::warning::Checks are failing but GEMINI_API_KEY is not set, so the coding agent was skipped."
+
+      # Always: a short overview of what this run decided, in the log and on the Summary page.
+      - name: Run overview
+        if: always()
+        run: |
+          healthy="${{ steps.report.outputs.healthy }}"
+          agent="${{ steps.agent.outcome }}"
+          pr="${{ steps.pr.outcome }}"
+          {
+            echo "## Run overview"
+            echo ""
+            echo "| Question | Answer |"
+            echo "|---|---|"
+            echo "| Healthy? | ${healthy:-unknown} |"
+            echo "| Coding agent | ${agent:-skipped} |"
+            echo "| Pull request step | ${pr:-skipped} |"
+            echo "| Live site measured | ${APP_URL:-no (APP_URL not set)} |"
+          } | tee -a "$GITHUB_STEP_SUMMARY"

@@ -9,6 +9,7 @@ import os
 import re
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -204,6 +205,8 @@ def verify():
     steps = [[sys.executable, "scripts/build_db.py"], [sys.executable, "-m", "pytest", "-q", "-p", "no:cacheprovider"]]
     for cmd in steps:
         result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
+        last = (result.stdout + result.stderr).strip().splitlines()[-1:] or [""]
+        print(f"  verify: {' '.join(cmd[1:])} -> {'ok' if result.returncode == 0 else 'FAILED'} ({last[0]})")
         if result.returncode != 0:
             return False, f"$ {' '.join(cmd[1:])}\n{(result.stdout + result.stderr)[-3000:]}"
     return True, ""
@@ -224,15 +227,24 @@ def main():
         print("All checks pass. No action needed.")
         return 0
 
+    print("Failing checks:")
+    for c in report["checks"]:
+        if not c["ok"]:
+            print(f"  - {c['name']}: {c['value']} (budget {c['budget']})")
     model = pick_model(key)
     print(f"Agent model: {model}")
     report_md = (REPORTS / "health-report.md").read_text()
     files = repo_files()
+    print(f"Context: health-report.md ({len(report_md)} chars) + {len(files)} source files "
+          f"({sum(len(t) for t in files.values())} chars): {', '.join(files)}")
     feedback, backup = "", {}
 
     for attempt in range(1, MAX_ATTEMPTS + 1):
         print(f"Attempt {attempt}: asking Gemini for fixes to {report['failed']} failing check(s)...")
+        started = time.monotonic()
         answer = call_gemini(key, model, build_prompt(report_md, files, feedback))
+        print(f"  Gemini answered in {time.monotonic() - started:.1f}s with {len(answer.get('changes', []))} change(s): "
+              f"\"{answer.get('pr_title', '').strip()}\"")
         restore(backup)
         backup = {}
         applied, rejected = apply_changes(answer.get("changes", []), backup)
