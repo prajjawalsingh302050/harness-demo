@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="860" viewBox="0 0 1200 860" font-family="Helvetica, Arial, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#3b4252"/>
+    </marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#5e4a7e"/>
+    </marker>
+  </defs>
+
+  <rect width="1200" height="860" fill="#ffffff"/>
+  <text x="40" y="44" font-size="26" font-weight="700" fill="#1c2230">Harness demo: overall architecture</text>
+  <text x="40" y="68" font-size="14" fill="#5b6475">Sensors measure the code and the live app, a coding agent fixes what fails, a human merges, Vercel redeploys.</text>
+
+  <!-- Browser -->
+  <rect x="40" y="130" width="250" height="110" rx="12" fill="#eef2f8" stroke="#3b4252" stroke-width="1.5"/>
+  <text x="165" y="170" font-size="18" font-weight="700" fill="#1c2230" text-anchor="middle">You (browser)</text>
+  <text x="165" y="194" font-size="13" fill="#5b6475" text-anchor="middle">People · Person · Health</text>
+  <text x="165" y="214" font-size="13" fill="#5b6475" text-anchor="middle">How it works</text>
+
+  <!-- Vercel -->
+  <rect x="400" y="96" width="760" height="210" rx="14" fill="#f4f7f5" stroke="#6a9f78" stroke-width="2"/>
+  <text x="420" y="124" font-size="17" font-weight="700" fill="#2f5d3a">Vercel  ·  harness-demo-beige.vercel.app  ·  Runtime</text>
+
+  <rect x="420" y="140" width="290" height="148" rx="10" fill="#ffffff" stroke="#6a9f78" stroke-width="1.5"/>
+  <text x="440" y="166" font-size="15" font-weight="700" fill="#1c2230">CDN: public/</text>
+  <text x="440" y="190" font-size="13" fill="#3b4252">index.html: People + "Load 5000"</text>
+  <text x="440" y="210" font-size="13" fill="#3b4252">person.html: look up by ID</text>
+  <text x="440" y="230" font-size="13" fill="#3b4252">health.html: health report</text>
+  <text x="440" y="250" font-size="13" fill="#3b4252">architecture.html: how it works</text>
+  <text x="440" y="270" font-size="13" fill="#3b4252">css/, js/</text>
+
+  <rect x="740" y="140" width="400" height="148" rx="10" fill="#ffffff" stroke="#6a9f78" stroke-width="1.5"/>
+  <text x="760" y="166" font-size="15" font-weight="700" fill="#1c2230">Python function: FastAPI</text>
+  <text x="760" y="190" font-size="13" fill="#3b4252">api/index.py: app + timing middleware</text>
+  <text x="760" y="210" font-size="13" fill="#3b4252">app/routes.py: the 3 endpoints</text>
+  <text x="760" y="230" font-size="13" fill="#3b4252">app/db.py: query() counts, times, logs slow</text>
+  <text x="760" y="250" font-size="13" fill="#3b4252">data/shop.db: SQLite, people (10,000 rows)</text>
+  <text x="760" y="274" font-size="12" fill="#5b6475">Headers on every response: X-DB-Queries, Server-Timing</text>
+
+  <!-- Browser to Vercel -->
+  <line x1="290" y1="168" x2="418" y2="168" stroke="#3b4252" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <text x="300" y="160" font-size="12" fill="#3b4252">pages, css, js</text>
+  <path d="M290,212 L380,212 L380,320 L940,320 L940,290" fill="none" stroke="#3b4252" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <text x="300" y="232" font-size="12" fill="#3b4252">/api/*</text>
+
+  <!-- GitHub Actions -->
+  <rect x="40" y="380" width="1120" height="230" rx="14" fill="#f6f4fa" stroke="#5e4a7e" stroke-width="2"/>
+  <text x="60" y="408" font-size="17" font-weight="700" fill="#5e4a7e">GitHub Actions  ·  health-check workflow</text>
+  <text x="1140" y="408" font-size="13" fill="#5e4a7e" text-anchor="end">runs manually or daily at 08:00 IST</text>
+
+  <!-- Sensors -->
+  <rect x="60" y="424" width="470" height="168" rx="10" fill="#ffffff" stroke="#5e4a7e" stroke-width="1.5"/>
+  <text x="80" y="450" font-size="15" font-weight="700" fill="#1c2230">1. Sensors</text>
+  <text x="80" y="474" font-size="13" fill="#0b3d4f" font-weight="700">Continuous drift detection (codebase)</text>
+  <rect x="80" y="484" width="150" height="30" rx="6" fill="#e8607a"/>
+  <text x="155" y="504" font-size="13" fill="#ffffff" text-anchor="middle" font-weight="700">Dead code</text>
+  <rect x="240" y="484" width="180" height="30" rx="6" fill="#3fa0a8"/>
+  <text x="330" y="504" font-size="13" fill="#ffffff" text-anchor="middle" font-weight="700">Unused libraries</text>
+  <text x="80" y="538" font-size="13" fill="#2f5d3a" font-weight="700">Continuous runtime feedback (live app)</text>
+  <rect x="80" y="548" width="240" height="30" rx="6" fill="#3fa0a8"/>
+  <text x="200" y="568" font-size="13" fill="#ffffff" text-anchor="middle" font-weight="700">p95 latency: Load 5000</text>
+  <rect x="330" y="548" width="150" height="30" rx="6" fill="#3fa0a8"/>
+  <text x="405" y="568" font-size="13" fill="#ffffff" text-anchor="middle" font-weight="700">Error rate</text>
+
+  <!-- Report -->
+  <rect x="580" y="444" width="240" height="128" rx="10" fill="#ffffff" stroke="#5e4a7e" stroke-width="1.5"/>
+  <text x="600" y="472" font-size="15" font-weight="700" fill="#1c2230">2. Health report</text>
+  <text x="600" y="496" font-size="13" fill="#3b4252">each value vs budgets.json</text>
+  <text x="600" y="516" font-size="13" fill="#3b4252">evidence, files, hint</text>
+  <text x="600" y="540" font-size="13" fill="#3b4252">all pass → stop</text>
+  <text x="600" y="560" font-size="13" fill="#3b4252">any fail → agent</text>
+
+  <!-- Agent -->
+  <rect x="870" y="444" width="270" height="128" rx="10" fill="#5e4a7e"/>
+  <text x="890" y="472" font-size="15" font-weight="700" fill="#ffffff">3. Coding agent (Gemini)</text>
+  <text x="890" y="496" font-size="13" fill="#ece6f5">reads report + source files</text>
+  <text x="890" y="516" font-size="13" fill="#ece6f5">edits app/ api/ tests/ migrations/</text>
+  <text x="890" y="536" font-size="13" fill="#ece6f5">public/ requirements.txt only</text>
+  <text x="890" y="560" font-size="13" fill="#ece6f5">verify: rebuild DB + pytest</text>
+
+  <line x1="530" y1="508" x2="578" y2="508" stroke="#3b4252" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <line x1="820" y1="508" x2="868" y2="508" stroke="#3b4252" stroke-width="1.8" marker-end="url(#arrow)"/>
+
+  <!-- Load test arrow: sensors -> Vercel function -->
+  <path d="M500,424 L500,352 L1100,352 L1100,290" fill="none" stroke="#2f5d3a" stroke-width="1.8" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+  <text x="560" y="346" font-size="12" fill="#2f5d3a" font-weight="700">load test against the live app (APP_URL)</text>
+
+  <!-- GitHub repository -->
+  <rect x="40" y="680" width="1120" height="130" rx="14" fill="#f2f6f8" stroke="#0b3d4f" stroke-width="2"/>
+  <text x="60" y="708" font-size="17" font-weight="700" fill="#0b3d4f">GitHub repository  ·  Codebase</text>
+
+  <rect x="60" y="722" width="290" height="72" rx="10" fill="#ffffff" stroke="#0b3d4f" stroke-width="1.5"/>
+  <text x="80" y="748" font-size="15" font-weight="700" fill="#1c2230">health-reports branch</text>
+  <text x="80" y="772" font-size="13" fill="#3b4252">latest.json · history.json</text>
+
+  <rect x="460" y="722" width="290" height="72" rx="10" fill="#ffffff" stroke="#0b3d4f" stroke-width="1.5"/>
+  <text x="480" y="748" font-size="15" font-weight="700" fill="#1c2230">4. Pull request</text>
+  <text x="480" y="772" font-size="13" fill="#3b4252">agent/health-fix-…, label harness-agent</text>
+
+  <rect x="850" y="722" width="290" height="72" rx="10" fill="#ffffff" stroke="#0b3d4f" stroke-width="1.5"/>
+  <text x="870" y="748" font-size="15" font-weight="700" fill="#1c2230">main branch</text>
+  <text x="870" y="772" font-size="13" fill="#3b4252">sensors check out this code</text>
+
+  <!-- report -> health-reports -->
+  <path d="M700,572 L700,640 L330,640 L330,720" fill="none" stroke="#3b4252" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <text x="340" y="634" font-size="12" fill="#3b4252">publish report</text>
+  <!-- health-reports -> browser -->
+  <path d="M60,758 L14,758 L14,200 L38,200" fill="none" stroke="#3b4252" stroke-width="1.8" stroke-dasharray="4 4" marker-end="url(#arrow)"/>
+  <text x="30" y="470" font-size="12" fill="#3b4252" transform="rotate(-90 30 470)" text-anchor="middle">health.html reads the report</text>
+  <!-- agent -> PR -->
+  <path d="M1005,572 L1005,660 L605,660 L605,720" fill="none" stroke="#5e4a7e" stroke-width="1.8" marker-end="url(#arrow-purple)"/>
+  <text x="790" y="654" font-size="12" fill="#5e4a7e" font-weight="700">opens PR</text>
+  <!-- PR -> main -->
+  <line x1="750" y1="758" x2="848" y2="758" stroke="#3b4252" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <text x="799" y="750" font-size="12" fill="#3b4252" font-weight="700" text-anchor="middle">5. human</text>
+  <text x="799" y="776" font-size="12" fill="#3b4252" font-weight="700" text-anchor="middle">merges</text>
+  <!-- main -> Vercel -->
+  <path d="M1140,758 L1188,758 L1188,200 L1162,200" fill="none" stroke="#2f5d3a" stroke-width="1.8" marker-end="url(#arrow)"/>
+  <text x="1172" y="470" font-size="12" fill="#2f5d3a" font-weight="700" transform="rotate(90 1172 470)" text-anchor="middle">6. Vercel deploys main → loop runs again</text>
+
+  <!-- Legend -->
+  <rect x="40" y="826" width="18" height="18" rx="3" fill="#e8607a"/>
+  <text x="66" y="840" font-size="13" fill="#3b4252">Inferential (needs judgement)</text>
+  <rect x="270" y="826" width="18" height="18" rx="3" fill="#3fa0a8"/>
+  <text x="296" y="840" font-size="13" fill="#3b4252">Computational (deterministic tool)</text>
+  <line x1="530" y1="835" x2="580" y2="835" stroke="#2f5d3a" stroke-width="1.8" stroke-dasharray="6 4"/>
+  <text x="590" y="840" font-size="13" fill="#3b4252">measures over HTTP</text>
+  <text x="1160" y="840" font-size="12" fill="#5b6475" text-anchor="end">Idea: martinfowler.com/articles/harness-engineering.html</text>
+</svg>

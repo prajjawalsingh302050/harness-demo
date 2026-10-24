@@ -5,19 +5,7 @@ For setup and the demo script, see [README.md](README.md).
 
 ## 1. System overview
 
-```
-                    ┌────────────────────────── Vercel ───────────────────────────┐
-   Browser ───────► │  CDN: public/*.html, css, js                                 │
-                    │  Python function: api/index.py ─► app/routes.py ─► app/db.py │
-                    │                                    ─► data/shop.db (SQLite)  │
-                    └───────────────▲──────────────────────────────────▲──────────┘
-                                    │ load test (APP_URL)              │ deploy on push / PR preview
-   ┌──────────────────────── GitHub Actions: health-check ─────────────┴──────────────┐
-   │ run_sensors.sh ─► build_report.py ─► publish_report.sh ─► agent.py ─► gh pr create │
-   └───────┬───────────────────────────────┬─────────────────────────────────┬─────────┘
-           ▼                               ▼                                 ▼
-     job summary              health-reports branch → /health.html     human reviews + merges
-```
+![Overall architecture](docs/images/architecture-overview.svg)
 
 Three independent parts:
 
@@ -36,6 +24,8 @@ Three independent parts:
 The app opens it with `mode=ro&immutable=1`: read-only and lock-free, safe for many serverless instances.
 
 ## 3. Backend
+
+![Backend architecture](docs/images/architecture-backend.svg)
 
 Three files, no layers:
 
