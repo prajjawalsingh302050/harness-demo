@@ -34,14 +34,12 @@ jobs:
       - name: Install
         run: pip install -r requirements.txt -r requirements-dev.txt
 
-      - name: Run sensors (codebase drift + runtime feedback)
+      # run_sensors.sh ends with build_report.py, which writes healthy=true/false to $GITHUB_OUTPUT.
+      - name: Run sensors and build report
+        id: report
         run: bash scripts/run_sensors.sh
         env:
           DURATION: "20"
-
-      - name: Build report
-        id: report
-        run: python scripts/build_report.py
 
       - name: Show report
         run: cat reports/health-report.md >> "$GITHUB_STEP_SUMMARY"
