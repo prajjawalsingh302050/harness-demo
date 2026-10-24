@@ -16,21 +16,9 @@ A human merges, Vercel redeploys, the sensors run again, and the report turns gr
 | Architecture details | [ARCHITECTURE.md](ARCHITECTURE.md) |
 | Notes for AI coding assistants | [CLAUDE.md](CLAUDE.md) |
 
-```
-   ┌──────────────── GitHub Actions: health-check ────────────────┐
-   │  drift detection (codebase)   runtime feedback (live app)    │
-   │  • dead code                  • p95 latency "Load 5000"      │
-   │  • unused libraries           • error rate                   │
-   └───────────────┬──────────────────────────────────────────────┘
-                   ▼
-        health report (budgets.json)  ──►  /health.html
-                   │ failing?
-                   ▼
-        Gemini coding agent  ──►  rebuild DB + run tests  ──►  pull request
-                                                                   │ human merges
-                                                                   ▼
-                                                   Vercel deploys ──► run health-check again
-```
+## Architecture
+
+![Overall architecture: browser, Vercel, GitHub Actions sensors, health report, Gemini agent, pull request, deploy](docs/images/architecture-overview.svg)
 
 ---
 
@@ -66,6 +54,8 @@ CREATE TABLE people (
 The data is generated from a fixed seed, so every build is identical. The file `data/shop.db` (about 0.5 MB) is committed and opened read-only.
 
 ### Backend (flat and minimal)
+
+![Backend architecture: api/index.py middleware, app/routes.py endpoints, app/db.py query layer, SQLite people table, with planted problems marked](docs/images/architecture-backend.svg)
 
 | File | What it does |
 |---|---|
@@ -210,6 +200,7 @@ harness-demo/
 ├── migrations/001_init.sql   people table
 ├── data/shop.db              Seeded database (committed)
 ├── tests/test_api.py         API tests
+├── docs/images/              Architecture diagrams (SVG) used in this README
 ├── scripts/                  run_sensors.sh  collect_runtime.py  build_report.py  agent.py
 │                             publish_report.sh  build_db.py  demo_reset.sh
 ├── budgets.json              What "healthy" means
