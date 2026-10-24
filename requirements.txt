@@ -1,2 +1,4 @@
 # Packages Vercel installs for the app at runtime.
 fastapi
+requests==2.32.3
+python-dateutil==2.9.0
