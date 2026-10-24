@@ -1,12 +1,15 @@
+// Health page: reads latest.json and history.json from the health-reports branch via the GitHub API.
 const checksEl = document.getElementById("checks");
 const overallEl = document.getElementById("overall");
 const generatedEl = document.getElementById("generated");
 const historyEl = document.getElementById("history");
 
+// Make text safe to insert as HTML.
 function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }
 
+// Fetch one JSON file from the health-reports branch, never from a cache.
 async function getJson(name) {
   const response = await fetch(`${REPORTS_API}/${name}?ref=${REPORTS_REF}`, {
     headers: { Accept: "application/vnd.github.raw+json" },
@@ -16,6 +19,7 @@ async function getJson(name) {
   return response.json();
 }
 
+// Show the latest report table, then one square per past run.
 async function loadReport() {
   try {
     const report = await getJson("latest.json");

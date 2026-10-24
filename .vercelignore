@@ -1,3 +1,4 @@
+# Kept out of the Vercel upload: local files, tests, scripts and docs.
 .venv
 .env
 reports

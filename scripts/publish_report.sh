@@ -4,9 +4,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
+# Work in a temporary worktree so the current checkout (main) is never touched.
 BRANCH=health-reports
 TMP="$(mktemp -d)"
 
+# Check out the branch if it exists on GitHub; otherwise create it with no history.
 if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
   git fetch -q origin "$BRANCH"
   git worktree add -q -B "$BRANCH" "$TMP" "origin/$BRANCH"
@@ -15,6 +17,7 @@ else
   (cd "$TMP" && git checkout -q --orphan "$BRANCH" && git rm -rqf .)
 fi
 
+# Write the newest report and append one line to the history (last 100 runs).
 python3 - "$TMP" <<'EOF'
 import json, sys
 from pathlib import Path
@@ -27,6 +30,7 @@ history.append({k: report[k] for k in ("generated_at", "commit", "healthy", "fai
 history_file.write_text(json.dumps(history[-100:], indent=2))
 EOF
 
+# Commit, push and clean up.
 cd "$TMP"
 git add latest.json history.json
 git -c user.name="harness-sensors" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \

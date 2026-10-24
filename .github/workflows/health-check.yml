@@ -1,15 +1,18 @@
 name: health-check
 
 # Continuous drift + runtime sensors -> coding agent -> pull request.
+# Runs on the button in the Actions tab, and every day at 08:00 IST.
 on:
   workflow_dispatch:
   schedule:
     - cron: "30 2 * * *"   # every day 08:00 IST
 
+# May push branches (reports, agent fix) and open pull requests; nothing else.
 permissions:
   contents: write
   pull-requests: write
 
+# One run at a time; a second run waits.
 concurrency:
   group: health-check
   cancel-in-progress: false
@@ -17,6 +20,7 @@ concurrency:
 jobs:
   health:
     runs-on: ubuntu-latest
+    # From Settings > Secrets and variables > Actions.
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
@@ -34,32 +38,39 @@ jobs:
       - name: Install
         run: pip install -r requirements.txt -r requirements-dev.txt
 
+      # All four sensors, then the report.
       - name: Run sensors (codebase drift + runtime feedback)
         run: bash scripts/run_sensors.sh
         env:
           DURATION: "20"
 
+      # Again, so this step can hand on healthy=true/false to later steps.
       - name: Build report
         id: report
         run: python scripts/build_report.py
 
+      # Report table on the run's Summary page.
       - name: Show report
         run: cat reports/health-report.md >> "$GITHUB_STEP_SUMMARY"
 
+      # Save the report for the website's Health page.
       - name: Publish report to health-reports branch
         run: bash scripts/publish_report.sh
 
+      # Raw sensor files as a downloadable zip.
       - name: Upload sensor outputs
         uses: actions/upload-artifact@v4
         with:
           name: sensor-reports
           path: reports/
 
+      # Only when something failed and a key is set.
       - name: Coding agent (Gemini)
         id: agent
         if: steps.report.outputs.healthy == 'false' && env.GEMINI_API_KEY != ''
         run: python scripts/agent.py
 
+      # Only when the agent's fix passed its tests.
       - name: Open pull request
         if: steps.agent.outcome == 'success'
         env:
@@ -84,6 +95,7 @@ jobs:
             --title "$(cat reports/pr-title.txt)" \
             --body-file reports/pr-body.md
 
+      # Failing but no key: show a warning instead.
       - name: No API key
         if: steps.report.outputs.healthy == 'false' && env.GEMINI_API_KEY == ''
         run: echo "::warning::Checks are failing but GEMINI_API_KEY is not set, so the coding agent was skipped."

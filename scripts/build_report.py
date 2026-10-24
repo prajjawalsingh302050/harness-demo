@@ -17,15 +17,18 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 REPORTS = ROOT / "reports"
+# The pass/fail limits. Changing them changes what "healthy" means.
 BUDGETS = json.loads((ROOT / "budgets.json").read_text())
 
 
 def load_json(path):
+    """Read reports/<path> as JSON, or return None if it is missing or empty."""
     path = REPORTS / path
     return json.loads(path.read_text()) if path.exists() and path.stat().st_size else None
 
 
 def check(id_, name, kind, area, value, budget, ok, details=None, files=None, hint=""):
+    """Build one check record: value vs budget, plus evidence (details), where to look (files) and a hint."""
     return {
         "id": id_, "name": name, "kind": kind, "area": area,
         "value": value, "budget": budget, "ok": bool(ok),
@@ -36,6 +39,7 @@ def check(id_, name, kind, area, value, budget, ok, details=None, files=None, hi
 # ---------- codebase sensors ----------
 
 def dead_code():
+    """Check 1: unused Python code (from vulture) plus JS files that no HTML page loads."""
     details, files = [], set()
     vulture = REPORTS / "vulture.txt"
     if vulture.exists():
@@ -93,6 +97,7 @@ def unused_dependencies():
 # ---------- runtime sensors ----------
 
 def runtime_source():
+    """Use the live site's load-test numbers if they exist, else the local ones."""
     live, local = load_json("runtime-live.json"), load_json("runtime-local.json")
     return (live, "live (Vercel)") if live else (local, "local (CI)")
 
@@ -135,6 +140,7 @@ def slow_query_details():
 
 
 def latency(runtime, source):
+    """Check 3: p95 latency of "Load 5000 people", with query counts and slow-query plans as evidence."""
     stats = runtime["by_endpoint"]["people"]
     budget = BUDGETS["people_p95_ms"]
     details = [
@@ -153,6 +159,7 @@ def latency(runtime, source):
 
 
 def error_rate(runtime, source):
+    """Check 4: share of requests that ended in a server error (5xx)."""
     rate = runtime["error_rate_pct"]
     person = runtime["by_endpoint"]["person"]
     return check(
@@ -165,6 +172,7 @@ def error_rate(runtime, source):
 
 
 def main():
+    """Run every check, write health-report.json and .md, and tell GitHub Actions whether it is healthy."""
     runtime, source = runtime_source()
     checks = [dead_code(), unused_dependencies()]
     if runtime:
@@ -189,6 +197,7 @@ def main():
 
 
 def to_markdown(report):
+    """Render the report as Markdown: a table of all checks, then a section per failing check."""
     icon = {"computational": "🟦", "inferential": "🟥"}
     status = "🟢 all checks pass" if report["healthy"] else f"🔴 {report['failed']} failing"
     lines = [

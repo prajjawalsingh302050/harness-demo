@@ -1,7 +1,9 @@
+// People page: loads 50 or 5000 people into the table and shows the timing pills.
 const tbody = document.getElementById("people");
 const count = document.getElementById("count");
 const metrics = document.getElementById("metrics");
 
+// Fetch `limit` people from the API and render them as table rows.
 async function loadPeople(limit) {
   tbody.innerHTML = '<tr><td colspan="4" class="muted">Loading…</td></tr>';
   count.textContent = "";
@@ -24,6 +26,7 @@ async function loadPeople(limit) {
     </tr>`).join("");
 }
 
+// Each button carries its limit in data-limit.
 document.querySelectorAll("button[data-limit]").forEach((button) => {
   button.addEventListener("click", () => loadPeople(button.dataset.limit));
 });
