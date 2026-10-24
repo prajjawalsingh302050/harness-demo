@@ -133,6 +133,11 @@ def main():
     people = summary["by_endpoint"]["people"]
     print(f"{args.base_url}: {summary['requests']} requests, errors {summary['error_rate_pct']}%, "
           f"5000-people p95 {people['p95_ms']} ms, {people['avg_db_queries']} queries/request")
+    labels = {"people": "Load 5000 people", "person": "Person lookup", "health": "Health check"}
+    print(f"  {'endpoint':<18}{'requests':>9}{'p50 ms':>10}{'p95 ms':>10}{'queries':>9}{'5xx':>6}")
+    for name, e in summary["by_endpoint"].items():
+        print(f"  {labels[name]:<18}{e['requests']:>9}{e['p50_ms']:>10}{e['p95_ms']:>10}{e['avg_db_queries']:>9}{e['errors_5xx']:>6}")
+    print(f"  Saved to {args.out}")
 
 
 if __name__ == "__main__":
