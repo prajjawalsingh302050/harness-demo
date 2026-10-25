@@ -96,7 +96,7 @@ health-report.md + source files ──► Gemini (JSON schema output) ──► 
 | Design choice | Reason |
 |---|---|
 | Plain REST call with `urllib`, no SDK | One less dependency; easy to read |
-| Model auto-selection (newest stable "flash") | Free-tier model names change; `GEMINI_MODEL` pins one |
+| Model auto-selection with fallback (flash, then pro) and retries with backoff on 429/5xx | Free-tier model names change and busy models return 503; the run survives a busy model instead of failing. `GEMINI_MODEL` pins the first choice |
 | `responseSchema` with full-file writes | Reliable to parse; no fragile diff application |
 | Path allowlist + protected `001_init.sql` | The agent can't weaken the harness (workflows, scripts, budgets) |
 | Verify before PR, one retry with the error | Only working change sets reach a human |

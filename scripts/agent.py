@@ -28,6 +28,14 @@ EDITABLE = ("app/", "api/", "tests/", "migrations/", "public/", "requirements.tx
 PROTECTED = {"migrations/001_init.sql"}
 # First try plus one retry with the test failure as feedback.
 MAX_ATTEMPTS = 2
+# HTTP statuses worth retrying: rate limit and temporary server trouble (e.g. 503 "high demand").
+TRANSIENT_STATUSES = {429, 500, 502, 503, 504}
+# Waits between retries of one model, in seconds; then the next model is tried.
+BACKOFF_SECONDS = (10, 30, 60)
+# Never wait longer than this for one retry, even if the server asks for more.
+MAX_WAIT_SECONDS = 90
+# How many models to try in total before giving up.
+MAX_MODELS = 4
 
 # System instruction sent with every request.
 RULES = """You are the coding agent inside a software harness. Sensors produced a health report.
@@ -91,37 +99,79 @@ def load_env():
             os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
+class GeminiUnavailable(Exception):
+    """A model stayed unavailable (overloaded, rate-limited or unreachable) after all retries."""
+
+
 def request(url, key, payload=None):
-    """Call the Gemini API (POST with a payload, GET without) and return the JSON reply."""
+    """Call the Gemini API (POST with a payload, GET without) and return the JSON reply.
+
+    Temporary failures (429/5xx, network errors, timeouts) are retried with backoff. If they
+    persist, GeminiUnavailable is raised so the caller can try another model. Any other error
+    (bad key, unknown model, bad request) stops the agent with the server's message.
+    """
     data = json.dumps(payload).encode() if payload is not None else None
     req = urllib.request.Request(url, data=data, method="POST" if data else "GET",
                                  headers={"x-goog-api-key": key, "Content-Type": "application/json"})
+    last_error = ""
+    for attempt in range(len(BACKOFF_SECONDS) + 1):
+        if attempt:
+            wait = BACKOFF_SECONDS[attempt - 1]
+            print(f"    retry {attempt}/{len(BACKOFF_SECONDS)} in {wait}s ({last_error})")
+            time.sleep(wait)
+        try:
+            with urllib.request.urlopen(req, timeout=300) as resp:
+                return json.loads(resp.read())
+        except urllib.error.HTTPError as exc:
+            body = exc.read().decode(errors="replace")[:500]
+            if exc.code not in TRANSIENT_STATUSES:
+                raise SystemExit(f"Gemini API error {exc.code}: {body}")
+            last_error = f"HTTP {exc.code}"
+            retry_after = exc.headers.get("Retry-After") if exc.headers else None
+            if retry_after and retry_after.isdigit() and attempt < len(BACKOFF_SECONDS):
+                # Honour the server's hint for the next wait, within limits.
+                hinted = min(int(retry_after), MAX_WAIT_SECONDS)
+                if hinted > BACKOFF_SECONDS[attempt]:
+                    print(f"    server asked to wait {hinted}s")
+                    time.sleep(hinted - BACKOFF_SECONDS[attempt])
+        except (urllib.error.URLError, TimeoutError, ConnectionError) as exc:
+            last_error = f"network: {getattr(exc, 'reason', exc)}"
+    raise GeminiUnavailable(last_error)
+
+
+def _version(name):
+    match = re.search(r"gemini-(\d+(?:\.\d+)?)", name)
+    return float(match.group(1)) if match else 0.0
+
+
+def candidate_models(key):
+    """Return the models to try, in order.
+
+    GEMINI_MODEL="a,b" uses exactly that order. GEMINI_MODEL="a" tries a first, then fallbacks.
+    Fallbacks are this key's stable "flash" models (newest first), then stable "pro" models.
+    """
+    pinned = [m.strip() for m in os.environ.get("GEMINI_MODEL", "").split(",") if m.strip()]
+    if len(pinned) > 1:
+        return pinned
     try:
-        with urllib.request.urlopen(req, timeout=300) as resp:
-            return json.loads(resp.read())
-    except urllib.error.HTTPError as exc:
-        raise SystemExit(f"Gemini API error {exc.code}: {exc.read().decode()[:500]}")
-
-
-def pick_model(key):
-    """Use GEMINI_MODEL if set, otherwise the newest stable "flash" model for this key."""
-    if os.environ.get("GEMINI_MODEL"):
-        return os.environ["GEMINI_MODEL"]
-    models = request(f"{API}/models?pageSize=200", key).get("models", [])
+        models = request(f"{API}/models?pageSize=200", key).get("models", [])
+    except GeminiUnavailable as exc:
+        if pinned:
+            return pinned
+        raise SystemExit(f"Could not list Gemini models ({exc}). Set GEMINI_MODEL and try again.")
     names = [m["name"].split("/", 1)[1] for m in models
-             if "generateContent" in m.get("supportedGenerationMethods", []) and "flash" in m["name"]]
+             if "generateContent" in m.get("supportedGenerationMethods", [])]
     skip = ("lite", "image", "tts", "live", "audio", "embedding", "exp", "preview", "thinking")
-
-    def version(name):
-        match = re.search(r"gemini-(\d+(?:\.\d+)?)", name)
-        return float(match.group(1)) if match else 0.0
-
-    stable = sorted((n for n in names if not any(s in n for s in skip)), key=version, reverse=True)
-    if stable:
-        return stable[0]
-    if names:
-        return sorted(names, key=version, reverse=True)[0]
-    raise SystemExit("No Gemini 'flash' model with generateContent is available for this key. Set GEMINI_MODEL.")
+    stable = [n for n in names if n.startswith("gemini-") and not any(s in n for s in skip)]
+    flash = sorted((n for n in stable if "flash" in n), key=_version, reverse=True)
+    pro = sorted((n for n in stable if "pro" in n), key=_version, reverse=True)
+    ordered = []
+    for name in pinned + flash + pro:
+        if name not in ordered:
+            ordered.append(name)
+    if not ordered:
+        raise SystemExit("No usable Gemini model with generateContent is available for this key. Set GEMINI_MODEL.")
+    return ordered[:MAX_MODELS]
 
 
 def repo_files():
@@ -145,19 +195,26 @@ def build_prompt(report_md, files, feedback):
     return "".join(parts)
 
 
-def call_gemini(key, model, prompt):
-    """Ask Gemini for a fix and return its answer as a dict matching SCHEMA."""
+def call_gemini(key, models, prompt):
+    """Ask Gemini for a fix, trying each model in turn; return (answer dict, model that answered)."""
     payload = {
         "systemInstruction": {"parts": [{"text": RULES}]},
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
         "generationConfig": {"responseMimeType": "application/json", "responseSchema": SCHEMA, "temperature": 0.2},
     }
-    data = request(f"{API}/models/{model}:generateContent", key, payload)
-    try:
-        text = "".join(p.get("text", "") for p in data["candidates"][0]["content"]["parts"])
-        return json.loads(text)
-    except (KeyError, IndexError, json.JSONDecodeError) as exc:
-        raise SystemExit(f"Could not parse Gemini response: {exc}\n{json.dumps(data)[:800]}")
+    for model in models:
+        print(f"  asking {model}...")
+        try:
+            data = request(f"{API}/models/{model}:generateContent", key, payload)
+        except GeminiUnavailable as exc:
+            print(f"  {model} is unavailable ({exc}); trying the next model")
+            continue
+        try:
+            text = "".join(p.get("text", "") for p in data["candidates"][0]["content"]["parts"])
+            return json.loads(text), model
+        except (KeyError, IndexError, json.JSONDecodeError) as exc:
+            print(f"  {model} gave an unreadable answer ({exc}); trying the next model")
+    raise SystemExit(f"All models were unavailable: {', '.join(models)}. Re-run the workflow later.")
 
 
 def safe_path(raw):
@@ -231,8 +288,8 @@ def main():
     for c in report["checks"]:
         if not c["ok"]:
             print(f"  - {c['name']}: {c['value']} (budget {c['budget']})")
-    model = pick_model(key)
-    print(f"Agent model: {model}")
+    models = candidate_models(key)
+    print(f"Agent models, in order: {', '.join(models)}")
     report_md = (REPORTS / "health-report.md").read_text()
     files = repo_files()
     print(f"Context: health-report.md ({len(report_md)} chars) + {len(files)} source files "
@@ -242,8 +299,8 @@ def main():
     for attempt in range(1, MAX_ATTEMPTS + 1):
         print(f"Attempt {attempt}: asking Gemini for fixes to {report['failed']} failing check(s)...")
         started = time.monotonic()
-        answer = call_gemini(key, model, build_prompt(report_md, files, feedback))
-        print(f"  Gemini answered in {time.monotonic() - started:.1f}s with {len(answer.get('changes', []))} change(s): "
+        answer, model = call_gemini(key, models, build_prompt(report_md, files, feedback))
+        print(f"  {model} answered in {time.monotonic() - started:.1f}s with {len(answer.get('changes', []))} change(s): "
               f"\"{answer.get('pr_title', '').strip()}\"")
         restore(backup)
         backup = {}
