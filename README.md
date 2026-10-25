@@ -124,7 +124,8 @@ Outputs (in `reports/`, git-ignored): `health-report.json`, `health-report.md` (
 [`scripts/agent.py`](scripts/agent.py) calls the Gemini REST API directly (no SDK).
 
 1. Reads `reports/health-report.md` and the source files.
-2. Picks a model: `GEMINI_MODEL` if set, otherwise the newest stable Gemini "flash" model.
+2. Picks the models to try, in order: `GEMINI_MODEL` first if set, then this key's stable "flash" models (newest first), then stable "pro" models, up to 4. `GEMINI_MODEL="a,b"` sets the exact order.
+   If a model is overloaded or rate-limited (429/5xx) or unreachable, the agent retries after 10 s, 30 s and 60 s, then moves on to the next model.
 3. Asks for JSON: `pr_title`, `pr_body`, and full-file `write` / `delete` changes.
 4. Applies only changes inside `app/`, `api/`, `tests/`, `migrations/`, `public/` and `requirements.txt`.
    Workflows, scripts, budgets and `001_init.sql` are off-limits.
@@ -215,7 +216,8 @@ harness-demo/
 | Symptom | Fix |
 |---|---|
 | Agent skipped: "GEMINI_API_KEY is not set" | `gh secret set GEMINI_API_KEY` |
-| `Gemini API error 429` | Free-tier rate limit. Wait a minute and run again. |
+| `retry … (HTTP 503)` / `… is unavailable; trying the next model` | Google is busy or rate-limiting. The agent retries and falls back by itself |
+| `All models were unavailable` | Every model stayed busy through its retries. Re-run the workflow later, or pin a different model with `GEMINI_MODEL` |
 | Agent prints "Giving up" | Neither attempt passed the tests. Run again (answers vary). |
 | `/health.html` says "No report yet" | Run **health-check** once |
 | Runtime checks show "local (CI)" | The `APP_URL` repo variable is missing |
