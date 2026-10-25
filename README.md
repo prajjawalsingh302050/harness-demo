@@ -169,7 +169,7 @@ Undo a local agent run: `git restore . && git clean -fd app tests migrations pub
 
 | Workflow | Trigger | Steps |
 |---|---|---|
-| `health-check` | Manual (**Actions → health-check → Run workflow**) and daily at 08:00 IST | Install → sensors (local + live) → report → publish to `health-reports` → if failing: agent → PR |
+| `health-check` | Manual only (**Actions → health-check → Run workflow**) | Install → sensors (local + live) → report → publish to `health-reports` → if failing: agent → PR |
 | `ci` | Every push and PR | DB matches migrations → tests |
 
 ## Demo script (about 5 minutes)

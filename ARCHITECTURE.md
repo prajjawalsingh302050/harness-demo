@@ -105,7 +105,7 @@ health-report.md + source files ──► Gemini (JSON schema output) ──► 
 
 | Event | What happens |
 |---|---|
-| `workflow_dispatch` or daily cron (02:30 UTC) | `health-check` runs sensors; if anything fails and the key is set, the agent opens a PR |
+| `workflow_dispatch` (Run workflow button) | `health-check` runs sensors; if anything fails and the key is set, the agent opens a PR |
 | PR opened | Vercel builds a preview deployment |
 | Merge to `main` | Vercel deploys to production; `ci` runs the DB check and tests |
 | Next `health-check` | Measures the new production deployment; green report, no PR |

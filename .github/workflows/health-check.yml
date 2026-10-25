@@ -1,11 +1,9 @@
 name: health-check
 
 # Continuous drift + runtime sensors -> coding agent -> pull request.
-# Runs on the button in the Actions tab, and every day at 08:00 IST.
+# Runs only when started by hand: Actions tab > health-check > Run workflow.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "30 2 * * *"   # every day 08:00 IST
 
 # May push branches (reports, agent fix) and open pull requests; nothing else.
 permissions:
