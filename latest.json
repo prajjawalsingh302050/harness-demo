@@ -1,0 +1,80 @@
+{
+  "generated_at": "2026-10-28T18:35:09+00:00",
+  "commit": "98d5b9d",
+  "healthy": false,
+  "failed": 4,
+  "checks": [
+    {
+      "id": "dead_code",
+      "name": "Dead code (vulture + unreferenced JS)",
+      "kind": "inferential",
+      "area": "codebase",
+      "value": 3,
+      "budget": 0,
+      "ok": false,
+      "details": [
+        "app/routes.py:2: unused import 'json' (90% confidence)",
+        "app/routes.py:57: unused function 'format_phone' (60% confidence)",
+        "public/js/legacy-charts.js: file is never loaded by any HTML page"
+      ],
+      "files": [
+        "app/routes.py",
+        "public/js/legacy-charts.js"
+      ],
+      "hint": "Confirm each item is truly unused (search the repo), then delete it. Delete whole files that become empty."
+    },
+    {
+      "id": "unused_dependencies",
+      "name": "Unused libraries in requirements.txt",
+      "kind": "computational",
+      "area": "codebase",
+      "value": 2,
+      "budget": 0,
+      "ok": false,
+      "details": [
+        "requests==2.32.3: listed in requirements.txt but never imported in app/ or api/",
+        "python-dateutil==2.9.0: listed in requirements.txt but never imported in app/ or api/"
+      ],
+      "files": [
+        "requirements.txt"
+      ],
+      "hint": "Remove each library the code never imports. Vercel installs everything in requirements.txt."
+    },
+    {
+      "id": "latency_people",
+      "name": "p95 latency /api/people?limit=5000 [live (Vercel)]",
+      "kind": "computational",
+      "area": "runtime",
+      "value": "7080 ms",
+      "budget": "1000 ms",
+      "ok": false,
+      "details": [
+        "p50 6327.3 ms, p95 7080.5 ms, DB time p95 6697.8 ms over 8 requests",
+        "Loading 5000 people runs 5001.0 DB queries on average (X-DB-Queries header)",
+        "58x slow query FULL TABLE SCAN: SELECT id, name, email, city FROM people WHERE email = ?  ->  plan: SCAN people",
+        "19x slow query: SELECT id, name, email, city FROM people WHERE id = ?  ->  plan: SEARCH people USING INTEGER PRIMARY KEY (rowid=?)",
+        "6x slow query: SELECT email FROM people ORDER BY id LIMIT ?  ->  plan: SCAN people"
+      ],
+      "files": [
+        "app/routes.py"
+      ],
+      "hint": "Find where the time goes. If the endpoint runs one query per person (N+1), fetch the whole list with one SELECT ... ORDER BY id LIMIT ? and keep the response shape {count, people: [{id, name, email, city}]}. Delete helpers that become unused. If you need an index, add a NEW migration (e.g. migrations/002_*.sql); never edit 001_init.sql."
+    },
+    {
+      "id": "error_rate",
+      "name": "Error rate (HTTP 5xx) [live (Vercel)]",
+      "kind": "computational",
+      "area": "runtime",
+      "value": "16.59%",
+      "budget": "1%",
+      "ok": false,
+      "details": [
+        "/api/people/{id} returned 139 server errors out of 701 requests (lookups of person IDs that do not exist)"
+      ],
+      "files": [
+        "app/routes.py"
+      ],
+      "hint": "Return HTTP 404 with a clear message when the person does not exist instead of crashing."
+    }
+  ]
+}
