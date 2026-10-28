@@ -120,7 +120,7 @@ def request(url, key, payload=None):
             print(f"    retry {attempt}/{len(BACKOFF_SECONDS)} in {wait}s ({last_error})")
             time.sleep(wait)
         try:
-            with urllib.request.urlopen(req, timeout=300) as resp:
+            with urllib.request.urlopen(req, timeout=120) as resp:
                 return json.loads(resp.read())
         except urllib.error.HTTPError as exc:
             body = exc.read().decode(errors="replace")[:500]
