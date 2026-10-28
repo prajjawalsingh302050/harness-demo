@@ -27,7 +27,7 @@ EDITABLE = ("app/", "api/", "tests/", "migrations/", "public/", "requirements.tx
 # Never edited, even though it is under an editable folder.
 PROTECTED = {"migrations/001_init.sql"}
 # First try plus one retry with the test failure as feedback.
-MAX_ATTEMPTS = 2
+MAX_ATTEMPTS = 1
 # HTTP statuses worth retrying: rate limit and temporary server trouble (e.g. 503 "high demand").
 TRANSIENT_STATUSES = {429, 500, 502, 503, 504}
 # Waits between retries of one model, in seconds; then the next model is tried.
@@ -35,7 +35,7 @@ BACKOFF_SECONDS = (10, 20, 30)
 # Never wait longer than this for one retry, even if the server asks for more.
 MAX_WAIT_SECONDS = 60
 # How many models to try in total before giving up.
-MAX_MODELS = 4
+MAX_MODELS = 2
 
 # System instruction sent with every request.
 RULES = """You are the coding agent inside a software harness. Sensors produced a health report.
