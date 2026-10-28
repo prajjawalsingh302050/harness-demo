@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-10-28T18:35:09+00:00",
+  "generated_at": "2026-10-28T18:49:32+00:00",
   "commit": "98d5b9d",
   "healthy": false,
   "failed": 4,
@@ -45,15 +45,15 @@
       "name": "p95 latency /api/people?limit=5000 [live (Vercel)]",
       "kind": "computational",
       "area": "runtime",
-      "value": "7080 ms",
+      "value": "5787 ms",
       "budget": "1000 ms",
       "ok": false,
       "details": [
-        "p50 6327.3 ms, p95 7080.5 ms, DB time p95 6697.8 ms over 8 requests",
+        "p50 5323.8 ms, p95 5787.0 ms, DB time p95 5519.4 ms over 9 requests",
         "Loading 5000 people runs 5001.0 DB queries on average (X-DB-Queries header)",
-        "58x slow query FULL TABLE SCAN: SELECT id, name, email, city FROM people WHERE email = ?  ->  plan: SCAN people",
-        "19x slow query: SELECT id, name, email, city FROM people WHERE id = ?  ->  plan: SEARCH people USING INTEGER PRIMARY KEY (rowid=?)",
-        "6x slow query: SELECT email FROM people ORDER BY id LIMIT ?  ->  plan: SCAN people"
+        "45x slow query FULL TABLE SCAN: SELECT id, name, email, city FROM people WHERE email = ?  ->  plan: SCAN people",
+        "23x slow query: SELECT id, name, email, city FROM people WHERE id = ?  ->  plan: SEARCH people USING INTEGER PRIMARY KEY (rowid=?)",
+        "8x slow query: SELECT email FROM people ORDER BY id LIMIT ?  ->  plan: SCAN people"
       ],
       "files": [
         "app/routes.py"
@@ -65,11 +65,11 @@
       "name": "Error rate (HTTP 5xx) [live (Vercel)]",
       "kind": "computational",
       "area": "runtime",
-      "value": "16.59%",
+      "value": "16.57%",
       "budget": "1%",
       "ok": false,
       "details": [
-        "/api/people/{id} returned 139 server errors out of 701 requests (lookups of person IDs that do not exist)"
+        "/api/people/{id} returned 172 server errors out of 866 requests (lookups of person IDs that do not exist)"
       ],
       "files": [
         "app/routes.py"
