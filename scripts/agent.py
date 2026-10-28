@@ -31,9 +31,9 @@ MAX_ATTEMPTS = 2
 # HTTP statuses worth retrying: rate limit and temporary server trouble (e.g. 503 "high demand").
 TRANSIENT_STATUSES = {429, 500, 502, 503, 504}
 # Waits between retries of one model, in seconds; then the next model is tried.
-BACKOFF_SECONDS = (10, 30, 60)
+BACKOFF_SECONDS = (10, 20, 30)
 # Never wait longer than this for one retry, even if the server asks for more.
-MAX_WAIT_SECONDS = 90
+MAX_WAIT_SECONDS = 60
 # How many models to try in total before giving up.
 MAX_MODELS = 4
 
