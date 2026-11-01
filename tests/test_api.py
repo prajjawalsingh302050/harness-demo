@@ -31,6 +31,13 @@ def test_person():
     assert response.json() == {"id": 10000, "name": "Vikram Das", "email": "vikram.das10000@example.com", "city": "Mumbai"}
 
 
+def test_person_not_found():
+    """Looking up a non-existent person returns 404."""
+    response = client.get("/api/people/15000")
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Person not found"}
+
+
 def test_health():
     """The health check answers {"status": "ok"}."""
     response = client.get("/api/health")
